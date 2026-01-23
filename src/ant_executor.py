@@ -282,7 +282,6 @@ class AntExecutor:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=False,  # 使用字节模式，稍后手动处理编码
-                bufsize=1,  # 行缓冲
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             

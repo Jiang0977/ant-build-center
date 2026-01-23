@@ -37,7 +37,9 @@ class ControlCenterGUI:
         self.is_building = False
         self.batch_running = False
         self.batch_cancel_requested = False
-        self.drag_data = {"item": None, "x": 0, "y": 0, "dragging": False}
+        self.drag_data = {"items": [], "x": 0, "y": 0, "dragging": False}
+        self.drag_indicator = None  # Floating label for drag feedback
+        self.drag_highlight_item = None  # Currently highlighted drop target
 
         self._setup_ui()
         self.refresh_tree()
@@ -84,10 +86,17 @@ class ControlCenterGUI:
         body.add(right_frame, weight=1)
 
         # 左侧树
+        tree_header = ttk.Frame(left_frame)
+        tree_header.pack(fill=tk.X, pady=(0, 4))
+        
+        ttk.Label(tree_header, text="分组列表", font=("Microsoft YaHei UI", 9, "bold")).pack(side=tk.LEFT)
+        ttk.Button(tree_header, text="⏷ 全部收起", width=10, command=self.collapse_all_groups).pack(side=tk.RIGHT, padx=(2, 0))
+        ttk.Button(tree_header, text="⏶ 全部展开", width=10, command=self.expand_all_groups).pack(side=tk.RIGHT)
+
         tree_frame = ttk.Frame(left_frame)
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.tree = ttk.Treeview(tree_frame, show="tree", selectmode="browse")
+        self.tree = ttk.Treeview(tree_frame, show="tree", selectmode="extended")
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         tree_scroll = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -272,36 +281,168 @@ class ControlCenterGUI:
         expanded = bool(self.tree.item(item, "open"))
         self.config.update_group(group_id, expanded=expanded)
 
+    def expand_all_groups(self) -> None:
+        """Expand all groups in the tree."""
+        for group in self.config.get_groups():
+            group_id = group.get("id")
+            item_id = f"group:{group_id}"
+            if self.tree.exists(item_id):
+                self.tree.item(item_id, open=True)
+                self.config.update_group(group_id, expanded=True)
+
+    def collapse_all_groups(self) -> None:
+        """Collapse all groups in the tree."""
+        for group in self.config.get_groups():
+            group_id = group.get("id")
+            item_id = f"group:{group_id}"
+            if self.tree.exists(item_id):
+                self.tree.item(item_id, open=False)
+                self.config.update_group(group_id, expanded=False)
+
     def on_tree_press(self, event) -> None:
         item = self.tree.identify_row(event.y)
         if item and item.startswith("file:"):
-            self.drag_data = {"item": item, "x": event.x, "y": event.y, "dragging": False}
+            # Get all selected file items for multi-drag support
+            selected = self.tree.selection()
+            file_items = [i for i in selected if i.startswith("file:")]
+            # If clicked item is not in selection, use only clicked item
+            if item not in selected:
+                file_items = [item]
+            self.drag_data = {"items": file_items, "x": event.x, "y": event.y, "dragging": False}
         else:
-            self.drag_data = {"item": None, "x": 0, "y": 0, "dragging": False}
+            self.drag_data = {"items": [], "x": 0, "y": 0, "dragging": False}
 
     def on_tree_motion(self, event) -> None:
-        if not self.drag_data.get("item"):
+        if not self.drag_data.get("items"):
             return
         moved = abs(event.x - self.drag_data["x"]) + abs(event.y - self.drag_data["y"])
         if moved > 5:
-            self.drag_data["dragging"] = True
+            if not self.drag_data["dragging"]:
+                self.drag_data["dragging"] = True
+                self.tree.config(cursor="hand2")
+                # Create floating drag indicator
+                self._create_drag_indicator(event)
+            else:
+                # Update drag indicator position and highlight target
+                self._update_drag_indicator(event)
+
+    def _create_drag_indicator(self, event) -> None:
+        """Create a floating label showing drag info."""
+        if self.drag_indicator:
+            self.drag_indicator.destroy()
+        
+        item_count = len(self.drag_data["items"])
+        if item_count == 1:
+            # Get file name for single item
+            item_id = self.drag_data["items"][0]
+            file_id = item_id.split(":", 1)[1]
+            file_data = self.config.get_file(file_id)
+            text = f"📄 {self._get_display_name(file_data)}" if file_data else "📄 1 个文件"
+        else:
+            text = f"📄 {item_count} 个文件"
+        
+        self.drag_indicator = tk.Toplevel(self.root)
+        self.drag_indicator.overrideredirect(True)  # Remove window decorations
+        self.drag_indicator.attributes("-topmost", True)
+        self.drag_indicator.attributes("-alpha", 0.85)
+        
+        label = tk.Label(
+            self.drag_indicator,
+            text=text,
+            bg="#3498DB",
+            fg="white",
+            font=("Microsoft YaHei UI", 9, "bold"),
+            padx=10,
+            pady=5,
+            relief=tk.RAISED,
+            borderwidth=1
+        )
+        label.pack()
+        
+        # Position near cursor
+        x = self.root.winfo_pointerx() + 15
+        y = self.root.winfo_pointery() + 15
+        self.drag_indicator.geometry(f"+{x}+{y}")
+
+    def _update_drag_indicator(self, event) -> None:
+        """Update drag indicator position and highlight drop target."""
+        if self.drag_indicator:
+            x = self.root.winfo_pointerx() + 15
+            y = self.root.winfo_pointery() + 15
+            self.drag_indicator.geometry(f"+{x}+{y}")
+        
+        # Highlight potential drop target
+        target_item = self.tree.identify_row(event.y)
+        
+        # Clear previous highlight
+        if self.drag_highlight_item and self.drag_highlight_item != target_item:
+            try:
+                if self.tree.exists(self.drag_highlight_item):
+                    self.tree.tag_configure("drag_highlight", background="")
+                    current_tags = list(self.tree.item(self.drag_highlight_item, "tags") or ())
+                    if "drag_highlight" in current_tags:
+                        current_tags.remove("drag_highlight")
+                        self.tree.item(self.drag_highlight_item, tags=current_tags)
+            except Exception:
+                pass
+            self.drag_highlight_item = None
+        
+        # Apply highlight to new target (only groups or files not in selection)
+        if target_item and target_item not in self.drag_data["items"]:
+            if target_item.startswith("group:"):
+                self.tree.tag_configure("drag_highlight", background="#D5F5E3")
+            else:
+                self.tree.tag_configure("drag_highlight", background="#FCF3CF")
+            
+            current_tags = list(self.tree.item(target_item, "tags") or ())
+            if "drag_highlight" not in current_tags:
+                current_tags.append("drag_highlight")
+                self.tree.item(target_item, tags=current_tags)
+            self.drag_highlight_item = target_item
+
+    def _cleanup_drag_ui(self) -> None:
+        """Clean up drag indicator and highlights."""
+        if self.drag_indicator:
+            self.drag_indicator.destroy()
+            self.drag_indicator = None
+        
+        if self.drag_highlight_item:
+            try:
+                if self.tree.exists(self.drag_highlight_item):
+                    current_tags = list(self.tree.item(self.drag_highlight_item, "tags") or ())
+                    if "drag_highlight" in current_tags:
+                        current_tags.remove("drag_highlight")
+                        self.tree.item(self.drag_highlight_item, tags=current_tags)
+            except Exception:
+                pass
+            self.drag_highlight_item = None
+        
+        self.tree.config(cursor="")
 
     def on_tree_release(self, event) -> None:
+        # Clean up drag UI
+        self._cleanup_drag_ui()
+        
         if not self.drag_data.get("dragging"):
+            self.drag_data = {"items": [], "x": 0, "y": 0, "dragging": False}
             return
-        source_item = self.drag_data.get("item")
-        self.drag_data = {"item": None, "x": 0, "y": 0, "dragging": False}
-        if not source_item or not source_item.startswith("file:"):
+        
+        source_items = self.drag_data.get("items", [])
+        self.drag_data = {"items": [], "x": 0, "y": 0, "dragging": False}
+        
+        # Filter to only file items
+        source_items = [i for i in source_items if i.startswith("file:")]
+        if not source_items:
             return
 
         target_item = self.tree.identify_row(event.y)
-        if not target_item or target_item == source_item:
+        if not target_item or target_item in source_items:
             return
 
-        self._move_file_by_drag(source_item, target_item, event.y)
+        self._move_files_by_drag(source_items, target_item, event.y)
 
-    def _move_file_by_drag(self, source_item: str, target_item: str, y: int) -> None:
-        source_file_id = source_item.split(":", 1)[1]
+    def _move_files_by_drag(self, source_items: List[str], target_item: str, y: int) -> None:
+        """Move multiple files by drag. Supports multi-selection."""
         target_group_id = None
         target_index = None
 
@@ -325,11 +466,30 @@ class ControlCenterGUI:
         if not target_group_id:
             return
 
-        moved = self.manager.move_file_to_group(source_file_id, target_group_id, target_index)
-        if not moved:
+        # Move all selected files
+        moved_file_ids = []
+        for source_item in source_items:
+            source_file_id = source_item.split(":", 1)[1]
+            moved = self.manager.move_file_to_group(source_file_id, target_group_id, target_index)
+            if moved:
+                moved_file_ids.append(source_file_id)
+                if target_index is not None:
+                    target_index += 1  # Adjust index for next file
+        
+        if not moved_file_ids:
             return
+        
         self.refresh_tree()
-        self._reselect_item(f"file:{source_file_id}")
+        # Reselect all moved files
+        for file_id in moved_file_ids:
+            item_id = f"file:{file_id}"
+            if self.tree.exists(item_id):
+                self.tree.selection_add(item_id)
+        # Focus first moved item
+        if moved_file_ids:
+            first_item = f"file:{moved_file_ids[0]}"
+            if self.tree.exists(first_item):
+                self.tree.focus(first_item)
         self._update_status_bar()
 
     def on_file_drop(self, event) -> Optional[str]:
