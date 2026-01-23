@@ -141,3 +141,6 @@ cython_debug/
 
 .cursor/
 .cursor/rules/
+
+# Workspace state
+config/workspace.json
