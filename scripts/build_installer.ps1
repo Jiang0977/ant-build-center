@@ -29,9 +29,9 @@ Write-Host "[4/5] Copying runtime assets to dist..."
 Copy-Item -Recurse -Force config dist/config
 Copy-Item -Recurse -Force scripts dist/scripts
 
-Write-Host "[5/5] Packaging zip (windows-dist.zip)..."
+Write-Host "[5/5] Packaging zip (windows-dist.zip) - exe files only..."
 if (Test-Path dist\windows-dist.zip) { Remove-Item dist\windows-dist.zip -Force }
-Compress-Archive -Path dist\* -DestinationPath dist\windows-dist.zip -Force
+Compress-Archive -Path dist\*.exe -DestinationPath dist\windows-dist.zip -Force
 
 Write-Host "Done. Outputs:"
 Get-ChildItem -File dist | Select-Object Name,Length

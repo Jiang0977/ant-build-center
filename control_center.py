@@ -4,6 +4,8 @@ Ant Build 中控中心主程序
 提供多项目/多 build.xml 的管理与构建执行界面。
 """
 
+import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -1017,7 +1019,61 @@ class ControlCenterGUI:
         self.root.mainloop()
 
 
+def create_desktop_shortcut() -> bool:
+    """
+    创建桌面快捷方式
+    返回是否成功创建
+    """
+    try:
+        import winshell
+        from win32com.client import Dispatch
+        
+        # 获取当前 exe 路径
+        if getattr(sys, 'frozen', False):
+            # 如果是打包后的 exe
+            exe_path = sys.executable
+        else:
+            # 如果是开发环境，直接返回
+            return False
+        
+        # 获取桌面路径
+        desktop = winshell.desktop()
+        
+        # 快捷方式路径
+        shortcut_path = os.path.join(desktop, "Ant Build 中控中心.lnk")
+        
+        # 如果已存在，不再创建
+        if os.path.exists(shortcut_path):
+            return False
+        
+        # 创建快捷方式
+        shell = Dispatch('WScript.Shell')
+        shortcut = shell.CreateShortCut(shortcut_path)
+        shortcut.Targetpath = exe_path
+        shortcut.WorkingDirectory = os.path.dirname(exe_path)
+        shortcut.Description = "Ant Build 项目构建中控中心"
+        
+        # 设置图标（使用 exe 自带的图标）
+        shortcut.IconLocation = exe_path
+        
+        shortcut.save()
+        return True
+    except Exception as e:
+        print(f"创建桌面快捷方式失败: {e}")
+        return False
+
+
 def main() -> None:
+    # 首次运行时创建桌面快捷方式
+    config = get_workspace_config()
+    
+    # 检查是否已创建过快捷方式
+    if not config.get_setting("desktop_shortcut_created", False):
+        if create_desktop_shortcut():
+            # 记录已创建快捷方式
+            config.set_setting("desktop_shortcut_created", True)
+            print("已创建桌面快捷方式")
+    
     app = ControlCenterGUI()
     app.run()
 

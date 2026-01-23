@@ -24,3 +24,7 @@ flake8>=5.0.0   # 代码检查
 setuptools>=65.0.0
 wheel>=0.37.0
 pyinstaller>=5.0.0  # 打包为exe 
+
+# Windows 快捷方式创建
+pywin32>=306       # Windows API 支持
+winshell>=0.6      # Windows Shell 操作

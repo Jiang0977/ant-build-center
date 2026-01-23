@@ -109,6 +109,9 @@ control_center_a = Analysis(
         'tkinter.filedialog',
         'tkinter.scrolledtext',
         'tkinter.simpledialog',
+        'winshell',
+        'win32com.client',
+        'pywintypes',
     ],
     hookspath=[],
     hooksconfig={},
@@ -142,4 +145,5 @@ control_center_exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='icon.ico',
 )

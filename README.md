@@ -149,21 +149,43 @@ python show_build_info.py     # 查看打包信息
 python setup.py sdist bdist_wheel    # 生成分发包
 ```
 
-### 生成独立可执行文件
+### 生成独立可执行文件（完整打包流程）
+
+推荐使用打包脚本一键完成：
+```powershell
+.\scripts\build_installer.ps1         # 构建并打包
+.\scripts\build_installer.ps1 -Clean  # 清理后重新构建
+```
+
+或手动执行：
 ```cmd
 pyinstaller main.spec         # 生成exe文件
 ```
 
+**打包脚本执行步骤：**
+1. 检查 Python 和 PyInstaller 环境
+2. 清理旧的构建文件（可选 `-Clean` 参数）
+3. 使用 PyInstaller 构建 exe 文件
+4. 复制 `config` 和 `scripts` 到 dist 目录
+5. 打包 `windows-dist.zip`（**仅包含 exe 文件**）
+
+**生成的文件：**
+| 文件 | 说明 |
+|------|------|
+| `main.exe` | 右键菜单主程序 |
+| `installer.exe` | 安装/卸载程序 |
+| `control_center.exe` | 中控中心（带图标，首次运行自动创建桌面快捷方式） |
+| `windows-dist.zip` | 发布包（仅包含 exe 文件） |
+
 ### 发布到 Gitee
-```cmd
+```powershell
 # 使用 PowerShell 运行发布脚本
-python scripts/publish_gitee_release.py        # 默认 target master
-# 或指定分支/提交
-python scripts/publish_gitee_release.py --target master
+python scripts/publish_gitee_release.py -v V1.0.6 -t your_gitee_token
 
- python scripts/publish_gitee_release.py -v V1.0.5 -t your_gitee_token
-
+# 可选参数
+python scripts/publish_gitee_release.py --target master  # 指定分支
 ```
+
 
 ![输入图片说明](examples/image.png)
 
