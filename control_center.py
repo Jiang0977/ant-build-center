@@ -5,11 +5,13 @@ Ant Build 中控中心主程序
 """
 
 import os
+import socket
 import sys
 import threading
 import time
+import shutil
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Callable
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext, simpledialog
@@ -19,19 +21,100 @@ from src.project_manager import get_project_manager, ProjectManager
 from src.ant_executor import AntExecutor
 
 
+SINGLE_INSTANCE_PORT = 47653
+
+
+def resource_path(*parts: str) -> Path:
+    """Return a runtime resource path that works in source and PyInstaller one-dir mode."""
+    if getattr(sys, "frozen", False):
+        app_dir = Path(sys.executable).resolve().parent
+        internal_dir = app_dir / "_internal"
+        for base in (app_dir, internal_dir):
+            candidate = base.joinpath(*parts)
+            if candidate.exists():
+                return candidate
+        return app_dir.joinpath(*parts)
+
+    return Path(__file__).resolve().parent.joinpath(*parts)
+
+
+class SingleInstanceManager:
+    """Ensure only one control-center instance is active and let later launches raise it."""
+
+    def __init__(self, port: int = SINGLE_INSTANCE_PORT):
+        self.port = port
+        self._server_socket: Optional[socket.socket] = None
+        self._listener_thread: Optional[threading.Thread] = None
+        self._activation_callback: Optional[Callable[[], None]] = None
+
+    def acquire(self) -> bool:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", self.port))
+            sock.listen(5)
+            self._server_socket = sock
+            return True
+        except OSError:
+            sock.close()
+            return False
+
+    def notify_existing_instance(self) -> bool:
+        try:
+            with socket.create_connection(("127.0.0.1", self.port), timeout=1) as sock:
+                sock.sendall(b"ACTIVATE\n")
+            return True
+        except OSError:
+            return False
+
+    def set_activation_callback(self, callback: Callable[[], None]) -> None:
+        self._activation_callback = callback
+
+    def start_listener(self) -> None:
+        if not self._server_socket:
+            return
+
+        def listen() -> None:
+            while self._server_socket:
+                try:
+                    client, _ = self._server_socket.accept()
+                except OSError:
+                    break
+                with client:
+                    try:
+                        payload = client.recv(128).decode("utf-8", errors="ignore").strip()
+                    except OSError:
+                        payload = ""
+                if payload == "ACTIVATE" and self._activation_callback:
+                    self._activation_callback()
+
+        self._listener_thread = threading.Thread(target=listen, daemon=True)
+        self._listener_thread.start()
+
+    def close(self) -> None:
+        if self._server_socket:
+            try:
+                self._server_socket.close()
+            except OSError:
+                pass
+            self._server_socket = None
+
+
 class ControlCenterGUI:
     """中控中心主界面"""
 
-    def __init__(self):
+    def __init__(self, instance_manager: Optional[SingleInstanceManager] = None):
         self.config: WorkspaceConfig = get_workspace_config()
         self.manager: ProjectManager = get_project_manager()
         self.executor = AntExecutor()
+        self.instance_manager = instance_manager
 
         self.root = tk.Tk()
         self.root.title("🏗️ Ant Build 中控中心")
         self.root.geometry("1000x700")
         self.root.minsize(900, 600)
         self.root.configure(bg="#F5F5F5")
+        self._icon_image = None
 
         self.current_file_id: Optional[str] = None
         self.current_group_id: Optional[str] = None
@@ -51,6 +134,7 @@ class ControlCenterGUI:
 
     def _setup_ui(self) -> None:
         self.root.protocol("WM_DELETE_WINDOW", self.close_application)
+        self._setup_window_icon()
 
         main_frame = ttk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -187,6 +271,24 @@ class ControlCenterGUI:
         self.output_text.tag_config("build_target", foreground="#F1C40F", font=("Consolas", 10, "bold"))
         self.output_text.tag_config("command", foreground="#9C88FF", font=("Consolas", 10, "italic"))
         self.output_text.tag_config("timestamp", foreground="#70A1FF")
+
+    def _setup_window_icon(self) -> None:
+        png_icon = resource_path("icons", "ant-build-menu.png")
+        if png_icon.exists():
+            try:
+                self._icon_image = tk.PhotoImage(file=str(png_icon))
+                self.root.iconphoto(True, self._icon_image)
+                return
+            except tk.TclError:
+                pass
+
+        if sys.platform == "win32":
+            ico_icon = resource_path("icon.ico")
+            if ico_icon.exists():
+                try:
+                    self.root.iconbitmap(default=str(ico_icon))
+                except tk.TclError:
+                    pass
 
     # ==================== 树形列表 ====================
 
@@ -1013,7 +1115,22 @@ class ControlCenterGUI:
             if not result:
                 return
             self.cancel_build()
+        if self.instance_manager:
+            self.instance_manager.close()
         self.root.destroy()
+
+    def activate_window(self) -> None:
+        def _activate() -> None:
+            self.root.deiconify()
+            self.root.lift()
+            try:
+                self.root.attributes("-topmost", True)
+                self.root.after(300, lambda: self.root.attributes("-topmost", False))
+            except tk.TclError:
+                pass
+            self.root.focus_force()
+
+        self.root.after(0, _activate)
 
     def run(self) -> None:
         self.root.mainloop()
@@ -1024,46 +1141,83 @@ def create_desktop_shortcut() -> bool:
     创建桌面快捷方式
     返回是否成功创建
     """
+    if not getattr(sys, 'frozen', False):
+        return False
+
     try:
-        import winshell
-        from win32com.client import Dispatch
-        
-        # 获取当前 exe 路径
-        if getattr(sys, 'frozen', False):
-            # 如果是打包后的 exe
+        if sys.platform == "win32":
+            import winshell
+            from win32com.client import Dispatch
+
             exe_path = sys.executable
-        else:
-            # 如果是开发环境，直接返回
-            return False
-        
-        # 获取桌面路径
-        desktop = winshell.desktop()
-        
-        # 快捷方式路径
-        shortcut_path = os.path.join(desktop, "Ant Build 中控中心.lnk")
-        
-        # 如果已存在，不再创建
-        if os.path.exists(shortcut_path):
-            return False
-        
-        # 创建快捷方式
-        shell = Dispatch('WScript.Shell')
-        shortcut = shell.CreateShortCut(shortcut_path)
-        shortcut.Targetpath = exe_path
-        shortcut.WorkingDirectory = os.path.dirname(exe_path)
-        shortcut.Description = "Ant Build 项目构建中控中心"
-        
-        # 设置图标（使用 exe 自带的图标）
-        shortcut.IconLocation = exe_path
-        
-        shortcut.save()
-        return True
+            desktop = winshell.desktop()
+            shortcut_path = os.path.join(desktop, "Ant Build 中控中心.lnk")
+
+            if os.path.exists(shortcut_path):
+                return False
+
+            shell = Dispatch('WScript.Shell')
+            shortcut = shell.CreateShortCut(shortcut_path)
+            shortcut.Targetpath = exe_path
+            shortcut.WorkingDirectory = os.path.dirname(exe_path)
+            shortcut.Description = "Ant Build 项目构建中控中心"
+            shortcut.IconLocation = exe_path
+            shortcut.save()
+            return True
+
+        if sys.platform.startswith("linux"):
+            exe_path = Path(sys.executable).resolve()
+            app_dir = exe_path.parent
+            icon_candidates = [
+                app_dir / "icons" / "ant-build-menu.png",
+                app_dir / "_internal" / "icons" / "ant-build-menu.png",
+                app_dir / "icons" / "ant-build-menu.svg",
+                app_dir / "_internal" / "icons" / "ant-build-menu.svg",
+                app_dir / "ant-build-menu.png",
+                app_dir / "ant-build-menu.svg",
+            ]
+            icon_path = next((candidate for candidate in icon_candidates if candidate.exists()), exe_path)
+
+            applications_dir = Path.home() / ".local" / "share" / "applications"
+            desktop_path = applications_dir / "ant-build-control-center.desktop"
+            desktop_path.parent.mkdir(parents=True, exist_ok=True)
+
+            desktop_content = "\n".join([
+                "[Desktop Entry]",
+                "Version=1.0",
+                "Type=Application",
+                "Name=Ant Build Control Center",
+                "Name[zh_CN]=Ant Build 中控中心",
+                "Comment=Apache Ant build control center",
+                f"Exec={exe_path}",
+                f"Path={app_dir}",
+                f"Icon={icon_path}",
+                "Terminal=false",
+                "Categories=Development;Utility;",
+                "StartupNotify=true",
+            ]) + "\n"
+
+            desktop_path.write_text(desktop_content, encoding="utf-8")
+            desktop_path.chmod(0o755)
+
+            desktop_desktop = Path.home() / "Desktop" / desktop_path.name
+            if desktop_desktop.parent.exists() and not desktop_desktop.exists():
+                shutil.copy2(desktop_path, desktop_desktop)
+                desktop_desktop.chmod(0o755)
+            return True
     except Exception as e:
         print(f"创建桌面快捷方式失败: {e}")
-        return False
+
+    return False
 
 
 def main() -> None:
+    instance_manager = SingleInstanceManager()
+    if not instance_manager.acquire():
+        instance_manager.notify_existing_instance()
+        print("Ant Build Control Center is already running.")
+        return
+
     # 首次运行时创建桌面快捷方式
     config = get_workspace_config()
     
@@ -1074,7 +1228,9 @@ def main() -> None:
             config.set_setting("desktop_shortcut_created", True)
             print("已创建桌面快捷方式")
     
-    app = ControlCenterGUI()
+    app = ControlCenterGUI(instance_manager=instance_manager)
+    instance_manager.set_activation_callback(app.activate_window)
+    instance_manager.start_listener()
     app.run()
 
 

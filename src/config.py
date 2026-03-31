@@ -8,6 +8,7 @@
 import json
 import os
 import sys
+import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -167,6 +168,36 @@ class Config:
             return env_ant_home
         
         return None
+
+    def get_java_command(self) -> Optional[str]:
+        """获取可用的 Java 命令或可执行路径"""
+        java_home = self.get_java_home()
+        if java_home:
+            java_name = "java.exe" if sys.platform == "win32" else "java"
+            java_exe = Path(java_home) / "bin" / java_name
+            if java_exe.exists():
+                return str(java_exe)
+
+        java_cmd = shutil.which("java")
+        if java_cmd:
+            return java_cmd
+
+        return None
+
+    def get_ant_command(self) -> Optional[str]:
+        """获取可用的 Ant 命令或可执行路径"""
+        ant_home = self.get_ant_home()
+        if ant_home:
+            ant_name = "ant.bat" if sys.platform == "win32" else "ant"
+            ant_exe = Path(ant_home) / "bin" / ant_name
+            if ant_exe.exists():
+                return str(ant_exe)
+
+        ant_cmd = shutil.which("ant")
+        if ant_cmd:
+            return ant_cmd
+
+        return None
     
     def get_java_home(self) -> Optional[str]:
         """获取Java安装路径"""
@@ -196,17 +227,12 @@ class Config:
         }
         
         # 检查Java环境
-        java_home = self.get_java_home()
-        if java_home:
-            java_exe = Path(java_home) / "bin" / "java.exe"
-            results['java_available'] = java_exe.exists()
+        results['java_available'] = self.get_java_command() is not None
         
         # 检查Ant环境
-        ant_home = self.get_ant_home()
-        if ant_home:
-            ant_exe = Path(ant_home) / "bin" / "ant.bat"
-            results['ant_available'] = ant_exe.exists()
-            results['ant_executable'] = ant_exe.exists()
+        ant_cmd = self.get_ant_command()
+        results['ant_available'] = ant_cmd is not None
+        results['ant_executable'] = ant_cmd is not None
         
         return results
     

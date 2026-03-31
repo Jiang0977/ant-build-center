@@ -26,6 +26,8 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+workspace.json
+
 .qoder
 
 # PyInstaller
@@ -109,6 +111,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv-package-linux/
 env/
 venv/
 ENV/
@@ -144,3 +147,7 @@ cython_debug/
 
 # Workspace state
 config/workspace.json
+
+# Example build artifacts
+examples/build/
+examples/dist/

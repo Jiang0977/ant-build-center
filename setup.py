@@ -55,7 +55,9 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Operating System :: Microsoft :: Windows",
+        "Operating System :: POSIX :: Linux",
         "Environment :: Win32 (MS Windows)",
+        "Environment :: X11 Applications :: Tk",
     ],
     python_requires=">=3.8",
     install_requires=requirements,
@@ -76,6 +78,7 @@ setup(
         "console_scripts": [
             "ant-build-menu=main:main",
             "ant-build-installer=src.installer:main",
+            "ant-build-control-center=control_center:main",
         ],
     },
     include_package_data=True,

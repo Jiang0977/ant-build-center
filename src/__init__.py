@@ -15,9 +15,13 @@ __description__ = "Windows右键菜单扩展 for Apache Ant"
 
 # 导出主要模块
 from .config import Config
-from .registry_manager import RegistryManager
 from .ant_executor import AntExecutor
 from .logger import setup_logger
+
+try:
+    from .registry_manager import RegistryManager
+except ImportError:
+    RegistryManager = None
 
 __all__ = [
     "Config",

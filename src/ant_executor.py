@@ -32,6 +32,58 @@ class AntExecutor:
         self.timeout = self.config.get('ant_config.timeout_seconds', 300)
         self.ant_home = self.config.get_ant_home()
         self.java_home = self.config.get_java_home()
+
+    def _creationflags(self) -> int:
+        """仅在 Windows 下隐藏控制台窗口。"""
+        return subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
+    def _get_java_executable(self) -> Optional[str]:
+        return self.config.get_java_command()
+
+    def _get_ant_script(self) -> Optional[str]:
+        return self.config.get_ant_command()
+
+    def _get_ant_launcher(self) -> Optional[Path]:
+        if not self.ant_home:
+            return None
+        ant_launcher = Path(self.ant_home) / "lib" / "ant-launcher.jar"
+        if ant_launcher.exists():
+            return ant_launcher
+        return None
+
+    def _build_ant_command(self, build_file: str, target: str = "") -> List[str]:
+        ant_launcher = self._get_ant_launcher()
+        java_exe = self._get_java_executable()
+
+        if ant_launcher and java_exe:
+            cmd = [java_exe, "-jar", str(ant_launcher), "-f", build_file]
+        else:
+            ant_cmd = self._get_ant_script()
+            if not ant_cmd:
+                raise FileNotFoundError("未找到可用的 Ant 可执行文件")
+            cmd = [ant_cmd, "-f", build_file]
+
+        if target:
+            cmd.append(target)
+
+        return cmd
+
+    def _build_env(self) -> Dict[str, str]:
+        env = os.environ.copy()
+        if self.java_home:
+            env['JAVA_HOME'] = self.java_home
+        if self.ant_home:
+            env['ANT_HOME'] = self.ant_home
+
+        # 清理可能导致 Windows 中文路径失效的 JVM 编码强制参数
+        for opt_var in ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS']:
+            if opt_var in env and env[opt_var]:
+                tokens = env[opt_var].split()
+                filtered = [t for t in tokens if not t.startswith('-Dsun.jnu.encoding=')]
+                env[opt_var] = ' '.join(filtered)
+                if not env[opt_var].strip():
+                    env.pop(opt_var, None)
+        return env
         
     def validate_environment(self) -> Tuple[bool, str]:
         """
@@ -41,25 +93,15 @@ class AntExecutor:
             Tuple[bool, str]: (是否有效, 消息)
         """
         # 检查Java环境
-        if not self.java_home:
-            return False, "未找到Java安装路径，请设置JAVA_HOME环境变量"
-        
-        java_exe = Path(self.java_home) / "bin" / "java.exe"
-        if not java_exe.exists():
-            return False, f"Java可执行文件不存在: {java_exe}"
+        java_exe = self._get_java_executable()
+        if not java_exe:
+            return False, "未找到 Java 可执行文件，请设置 JAVA_HOME 或把 java 加入 PATH"
         
         # 检查Ant环境
-        if not self.ant_home:
-            return False, "未找到Ant安装路径，请设置ANT_HOME环境变量"
-
-        # 优先使用 Ant Launcher JAR（避免 bat 编码丢失）
-        ant_launcher = Path(self.ant_home) / "lib" / "ant-launcher.jar"
-        ant_bat = Path(self.ant_home) / "bin" / "ant.bat"
-        if not ant_launcher.exists() and not ant_bat.exists():
-            return False, (
-                f"Ant启动器不存在: {ant_launcher} 且 Ant批处理不存在: {ant_bat}\n"
-                "请检查 ANT_HOME 是否正确安装。"
-            )
+        ant_launcher = self._get_ant_launcher()
+        ant_cmd = self._get_ant_script()
+        if not ant_launcher and not ant_cmd:
+            return False, "未找到 Ant 可执行文件，请设置 ANT_HOME 或把 ant 加入 PATH"
         
         return True, "Ant环境验证通过"
     
@@ -132,39 +174,8 @@ class AntExecutor:
             return False, "", msg
         
         try:
-            # 构建Ant命令（优先使用 Java 启动器，避免 bat 编码问题）
-            ant_launcher = Path(self.ant_home) / "lib" / "ant-launcher.jar"
-            java_exe = Path(self.java_home) / "bin" / "java.exe"
-            if ant_launcher.exists():
-                # 使用 Java 直接运行 Ant Launcher（CreateProcessW 传递 Unicode，避免乱码）
-                cmd = [
-                    str(java_exe),
-                    "-jar",
-                    str(ant_launcher),
-                    "-f",
-                    build_file,
-                ]
-            else:
-                ant_bat = Path(self.ant_home) / "bin" / "ant.bat"
-                cmd = [str(ant_bat), "-f", build_file]
-            
-            if target:
-                cmd.append(target)
-            
-            # 设置环境变量
-            env = os.environ.copy()
-            env['JAVA_HOME'] = self.java_home
-            env['ANT_HOME'] = self.ant_home
-            # 清理可能导致Windows中文路径失效的JVM编码强制参数
-            for opt_var in ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS']:
-                if opt_var in env and env[opt_var]:
-                    tokens = env[opt_var].split()
-                    filtered = [t for t in tokens if not t.startswith('-Dsun.jnu.encoding=')]
-                    # 可选：同时移除 -Dfile.encoding 以完全回归系统默认
-                    # filtered = [t for t in filtered if not t.startswith('-Dfile.encoding=')]
-                    env[opt_var] = ' '.join(filtered)
-                    if not env[opt_var].strip():
-                        env.pop(opt_var, None)
+            cmd = self._build_ant_command(build_file, target)
+            env = self._build_env()
             
             print(f"🚀 执行Ant命令: {' '.join(cmd)}")
             print(f"📂 工作目录: {Path(build_file).parent}")
@@ -178,7 +189,7 @@ class AntExecutor:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=False,  # 使用字节模式
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=self._creationflags()
             )
             
             # 等待命令完成或超时
@@ -239,35 +250,8 @@ class AntExecutor:
             return False, 0.0
         
         try:
-            # 构建Ant命令（优先使用 Java 启动器，避免 bat 编码问题）
-            ant_launcher = Path(self.ant_home) / "lib" / "ant-launcher.jar"
-            java_exe = Path(self.java_home) / "bin" / "java.exe"
-            if ant_launcher.exists():
-                cmd = [
-                    str(java_exe),
-                    "-jar",
-                    str(ant_launcher),
-                    "-f",
-                    build_file,
-                ]
-            else:
-                ant_bat = Path(self.ant_home) / "bin" / "ant.bat"
-                cmd = [str(ant_bat), "-f", build_file]
-            
-            if target:
-                cmd.append(target)
-            
-            # 设置环境变量
-            env = os.environ.copy()
-            env['JAVA_HOME'] = self.java_home
-            env['ANT_HOME'] = self.ant_home
-            for opt_var in ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS']:
-                if opt_var in env and env[opt_var]:
-                    tokens = env[opt_var].split()
-                    filtered = [t for t in tokens if not t.startswith('-Dsun.jnu.encoding=')]
-                    env[opt_var] = ' '.join(filtered)
-                    if not env[opt_var].strip():
-                        env.pop(opt_var, None)
+            cmd = self._build_ant_command(build_file, target)
+            env = self._build_env()
             
             if output_callback:
                 output_callback(f"🚀 执行Ant命令: {' '.join(cmd)}\n", False)
@@ -282,7 +266,7 @@ class AntExecutor:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=False,  # 使用字节模式，稍后手动处理编码
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=self._creationflags()
             )
             
             # 将进程对象传递给回调
@@ -393,21 +377,19 @@ class AntExecutor:
             Optional[str]: Ant版本字符串，获取失败返回None
         """
         try:
-            ant_bat = Path(self.ant_home) / "bin" / "ant.bat"
-            if not ant_bat.exists():
+            ant_cmd = self._get_ant_script()
+            if not ant_cmd:
                 return None
-            
-            env = os.environ.copy()
-            env['JAVA_HOME'] = self.java_home
-            env['ANT_HOME'] = self.ant_home
+
+            env = self._build_env()
             
             process = subprocess.Popen(
-                [str(ant_bat), "-version"],
+                [ant_cmd, "-version"],
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=False,  # 使用字节模式
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=self._creationflags()
             )
             
             stdout_bytes, stderr_bytes = process.communicate(timeout=10)
