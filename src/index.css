@@ -15,7 +15,7 @@
   --accent-strong: #1f4fa8;
   --success: #1f8c5d;
   --danger: #c24c4c;
-  --shadow: 0 28px 60px rgba(18, 28, 45, 0.11);
+  --shadow: 0 10px 24px rgba(18, 28, 45, 0.08);
 
   --body-font: 'Aptos', 'Bahnschrift', 'Microsoft YaHei UI', sans-serif;
   --display-font: 'Bahnschrift SemiCondensed', 'DIN Alternate', 'Aptos Display', 'Microsoft YaHei UI', sans-serif;
@@ -25,6 +25,7 @@
 html,
 body,
 #root {
+  height: 100%;
   min-height: 100%;
 }
 
@@ -32,6 +33,7 @@ body {
   margin: 0;
   font-family: var(--body-font);
   color: var(--ink);
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(47, 111, 237, 0.12), transparent 28%),
     radial-gradient(circle at top right, rgba(124, 151, 183, 0.15), transparent 22%),

@@ -1,8 +1,9 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Ant Build Center",
-  "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "mainBinaryName": "ant-build-center",
+  "version": "1.1.0",
+  "identifier": "io.github.jiang0977.ant-build-center",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -10,6 +11,7 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
+    "enableGTKAppId": true,
     "windows": [
       {
         "title": "Ant Build Center",
@@ -26,12 +28,22 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Jiang0977",
+    "category": "DeveloperTool",
+    "homepage": "https://github.com/Jiang0977/ant-build-menu",
+    "shortDescription": "Grouped Ant build.xml control center for desktop workflows.",
+    "longDescription": "Ant Build Center is a desktop control panel for organizing Ant build.xml files into groups, running one target at a time, and watching live logs with persisted workspace state.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "bundle/linux/ant-build-center.desktop.hbs"
+      }
+    }
   }
 }

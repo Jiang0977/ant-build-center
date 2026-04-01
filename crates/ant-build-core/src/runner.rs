@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
-use std::io::BufRead;
 use std::io;
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -56,8 +56,8 @@ pub fn resolve_build_command_with_env(
 ) -> io::Result<ResolvedBuildCommand> {
     let java_home = path_if_present(&request.runtime.java_home)
         .or_else(|| env.get("JAVA_HOME").map(PathBuf::from));
-    let ant_home =
-        path_if_present(&request.runtime.ant_home).or_else(|| env.get("ANT_HOME").map(PathBuf::from));
+    let ant_home = path_if_present(&request.runtime.ant_home)
+        .or_else(|| env.get("ANT_HOME").map(PathBuf::from));
     let java_executable = java_home
         .as_ref()
         .map(|home| home.join("bin").join(java_binary_name()));
@@ -111,10 +111,16 @@ pub fn resolve_build_command_with_env(
 
     let mut env = BTreeMap::new();
     if let Some(java_home) = java_home {
-        env.insert("JAVA_HOME".to_string(), java_home.to_string_lossy().into_owned());
+        env.insert(
+            "JAVA_HOME".to_string(),
+            java_home.to_string_lossy().into_owned(),
+        );
     }
     if let Some(ant_home) = ant_home {
-        env.insert("ANT_HOME".to_string(), ant_home.to_string_lossy().into_owned());
+        env.insert(
+            "ANT_HOME".to_string(),
+            ant_home.to_string_lossy().into_owned(),
+        );
     }
 
     Ok(ResolvedBuildCommand {
@@ -233,7 +239,10 @@ fn ant_binary_name() -> &'static str {
     }
 }
 
-fn find_executable_in_path(env: &BTreeMap<String, String>, executable_name: &str) -> Option<PathBuf> {
+fn find_executable_in_path(
+    env: &BTreeMap<String, String>,
+    executable_name: &str,
+) -> Option<PathBuf> {
     let path = env.get("PATH")?;
     std::env::split_paths(path)
         .map(|directory| directory.join(executable_name))
