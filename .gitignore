@@ -151,3 +151,8 @@ config/workspace.json
 # Example build artifacts
 examples/build/
 examples/dist/
+
+# Node / Tauri
+node_modules/
+dist/
+src-tauri/target/
