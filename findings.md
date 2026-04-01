@@ -24,6 +24,30 @@
 - The Tauri shell now exposes workspace commands plus build execution / cancellation wiring through `build-log` and `build-finished` events.
 - Ubuntu 24.04 can run the Tauri shell locally after installing the official Linux dependency set; the previous GTK/WebKit blocker is gone.
 
+## Grouped File Management Discovery (2026-04-01)
+- The current React/Tauri app still renders the left rail from a flat `workspace.projects` list in `src/App.tsx`.
+- The Rust core workspace model in `crates/ant-build-core/src/workspace.rs` only stores `projects`; it has no group entity, no ordering metadata, and no parent-child relationship for files.
+- The frontend `addProjects()` flow in `src/lib/tauri.ts` opens a native multi-select XML dialog and invokes `add_projects(paths)` with no group assignment.
+- The current rewrite design doc `docs/designs/tauri-control-center-rewrite.md` explicitly lists grouping and drag-and-drop sorting as non-goals, so this request changes the rewrite baseline rather than extending an already-approved scope item.
+- The legacy Python implementation at commit `ea80b9c` already supported group trees, Ctrl/Shift multi-select, drag feedback/highlighting, moving multiple files into groups or relative file positions, add-files-into-group, and stronger delete-group prompts.
+- Conclusion: adding groups to the Tauri rewrite is not a cosmetic list enhancement. It is a data-model and interaction-model decision that should be designed first, then implemented.
+- User confirmed the work mode is `Internal initiative`: this is an existing-project feature evolution and the optimization target is "do it right and land it quickly," not broad product exploration.
+- User chose to revise `docs/designs/tauri-control-center-rewrite.md` directly rather than create a second design doc, so the rewrite baseline should be updated in place.
+- User confirmed the premise set:
+  - groups are persisted workspace entities
+  - files remain the buildable unit
+  - deleting a non-empty group must never silently delete files
+  - add-file flow must support explicit target-group assignment plus a default-group path
+- User selected `Approach A`: keep `projects[]` flat for build execution, add first-class `groups[]`, and model grouping with `project.groupId` plus per-group `order`.
+- User approved user-created group renaming as part of the first grouped release.
+- Old Python behavior confirms that deleting a non-empty group previously moved files into the default "Ungrouped" bucket rather than deleting them.
+- Old Python config behavior also confirms that a default group invariant already existed and is a good fit for the Tauri rewrite.
+- During TDD implementation, a real persistence bug appeared: same-group reorder operations were being lost after save/reload because workspace normalization rewrote order from raw vector position. A regression test now locks this down and normalization preserves stored order with original insertion order only as a tie-breaker.
+- The first grouped rail shipped with browser-native `prompt` / `confirm`, which broke the visual language of the rest of the app. This round replaced them with project-styled modal dialogs and added a persisted expand/collapse command for groups.
+- Duplicate tracked files were still possible because path uniqueness was only weakly enforced at add time. The workspace layer now treats project `path` as globally unique, skips duplicate adds, and deduplicates old duplicate paths while loading the workspace.
+- Grouped rail multi-select now has a matching destructive action: users can right-click selected files and remove them as a batch. The backend now exposes a true bulk-remove path so per-group ordering stays compact after multi-delete.
+- Group rename/delete entry points now live on the group itself instead of the top toolbar. Right-clicking a group row opens the action menu, which reduces rail chrome and keeps destructive actions attached to the object they affect.
+
 ## Technical Decisions
 | Decision | Rationale |
 |----------|-----------|
@@ -34,6 +58,8 @@
 | Drive the first tests at the Rust service layer | Easier to keep TDD disciplined than starting with UI automation |
 | Introduce `crates/ant-build-core` as a pure Rust domain crate | Decouples tested behavior from Tauri's platform-specific build requirements |
 | Keep `src-tauri` as a thin adapter over `ant-build-core` | The shell should own window/event/state wiring, not domain logic |
+| Put grouped workspace mutations into `ant-build-core::workspace::Workspace` methods | This let Tauri stay a thin command adapter and kept the TDD surface on public behavior rather than UI internals |
+| Persist group expanded/collapsed state through the backend instead of keeping it as frontend-only UI state | The grouped workspace schema already carries `expanded`, and users expect the rail shape to survive reloads |
 
 ## Issues Encountered
 | Issue | Resolution |
@@ -54,3 +80,6 @@
 ## Visual/Browser Findings
 - The Tauri single-instance docs confirm the plugin callback receives `(app, args, cwd)` and show focusing the `"main"` window from the running instance.
 - The docs note the single-instance plugin should be the first plugin registered.
+
+## Prior Design Docs
+- `docs/designs/tauri-control-center-rewrite.md` (2026-04-01 17:05:26 +0800): current rewrite baseline; now partially outdated for left-rail scope because it treats grouping as out of scope.

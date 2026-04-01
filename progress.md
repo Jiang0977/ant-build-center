@@ -103,6 +103,53 @@
   - `src-tauri/Cargo.toml`
   - `src-tauri/src/lib.rs`
 
+### Phase 8: Grouped File Management Design Discovery
+- **Status:** complete
+- Actions taken:
+  - Switched to the `planning-with-files` workflow for this feature discussion so discovery state is persisted in the repo.
+  - Read the current React frontend, TS types, Rust workspace storage, and Tauri command adapters to identify where grouping would have to land.
+  - Compared the current Tauri rewrite against the old Python implementation at commit `ea80b9c`, which already had grouped tree behavior and Ctrl/Shift multi-select drag/drop.
+  - Confirmed the current rewrite uses a flat `projects[]` workspace, so this feature requires a workspace-schema and UX decision before code changes.
+  - Ran the planning skill's session-catchup script; it reported no additional unsynced context for this workspace.
+  - Confirmed with the user that this is an internal-project feature evolution; the decision bar is "ship correctly and quickly", not product-market validation.
+  - Confirmed with the user that the existing design doc should be revised in place instead of creating a separate grouping addendum.
+  - Confirmed the premise set for implementation planning: persisted groups, file-centric build actions, guarded non-empty group deletion, and group-aware add-file behavior.
+  - Compared grouped-behavior details in the old Python implementation and confirmed two reusable rules: keep a default group invariant and move files there when deleting a non-empty group.
+  - Revised `docs/designs/tauri-control-center-rewrite.md` to adopt Approach A, upgrade the workspace schema to grouped `version: 3`, and specify drag/drop, add-file, and delete-group behavior.
+  - Confirmed that user-created groups must support rename in the first grouped release and updated the design doc accordingly.
+- Files created/modified:
+  - `docs/designs/tauri-control-center-rewrite.md`
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
+
+### Phase 9: Grouped File Management Implementation
+- **Status:** in_progress
+- Actions taken:
+  - Used `tdd` to drive the implementation in thin vertical slices instead of landing one large grouped-rail patch.
+  - RED/GREEN slice 1: added failing workspace tests for grouped defaults and flat-v2 upgrade, then implemented grouped `version: 3` workspace loading with a default `Ungrouped` system group.
+  - RED/GREEN slice 2: added failing group-management tests for create, rename, and delete, then implemented `Workspace::create_group`, `rename_group`, and `delete_group`.
+  - RED/GREEN slice 3: added failing project-grouping tests for grouped add, grouped move, and grouped remove, then implemented `Workspace::add_project_to_group`, `move_projects`, and `remove_project`.
+  - RED/GREEN slice 4: updated the Tauri command surface to expose group CRUD and grouped file moves, then rewrote the React left rail to render groups, select files with Ctrl/Cmd or Shift, drag selected files, choose an add target group, rename groups, and show a strong delete warning for non-empty groups.
+  - Added a persistence regression test for same-group reorder after save/reload and fixed workspace normalization so stored `order` survives reloads.
+  - Follow-up polish: replaced native `prompt` / `confirm` with project-styled group dialogs, added a persisted `set_group_expanded` command, and made empty expanded groups accept drag-and-drop through their full body area.
+  - Follow-up bug fix: added regression tests for duplicate file paths, then enforced path uniqueness in the workspace layer so duplicate adds are ignored and older duplicate entries are compacted on load.
+  - Follow-up interaction: added a bulk `remove_projects` workspace/Tauri path, then wired a custom right-click menu in the grouped rail so multi-selected files can be removed together with one confirmation dialog.
+  - Follow-up interaction: removed the top-level rename/delete group buttons and moved those actions onto a group-row right-click context menu, keeping only `New group` in the toolbar.
+- Files created/modified:
+  - `crates/ant-build-core/src/workspace.rs`
+  - `crates/ant-build-core/tests/workspace_bootstrap.rs`
+  - `crates/ant-build-core/tests/group_management.rs`
+  - `crates/ant-build-core/tests/project_grouping.rs`
+  - `src-tauri/src/lib.rs`
+  - `src/types.ts`
+  - `src/lib/tauri.ts`
+  - `src/App.tsx`
+  - `src/App.css`
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
+
 ## Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
@@ -119,6 +166,13 @@
 | Frontend production build | `npm run build` | React/Vite app compiles after UI rewrite and cleanup | Build succeeded | ✓ |
 | Tauri shell formatting | `cargo fmt` in `src-tauri` | Rust shell source formats cleanly after command integration | Succeeded | ✓ |
 | Tauri shell tests | `cargo test` in `src-tauri` | Desktop shell compiles on Ubuntu after system deps install | Succeeded | ✓ |
+| Grouped workspace TDD | `cargo test --test workspace_bootstrap` in `crates/ant-build-core` | Grouped defaults, v2 upgrade, and reordered persistence all hold | 4 tests passed | ✓ |
+| Group CRUD TDD | `cargo test --test group_management` in `crates/ant-build-core` | Create, rename, and delete-group move behavior all work | 3 tests passed | ✓ |
+| Project grouping TDD | `cargo test --test project_grouping` in `crates/ant-build-core` | Grouped add, grouped move, and grouped remove keep order valid | 3 tests passed | ✓ |
+| Group expanded-state TDD | `cargo test --test group_management` in `crates/ant-build-core` | Collapsed / expanded state persists through the workspace layer | 4 tests passed | ✓ |
+| Duplicate path regression | `cargo test --test project_grouping` and `cargo test --test workspace_bootstrap` in `crates/ant-build-core` | Duplicate add attempts are ignored and duplicate saved paths are deduplicated on load | Passed | ✓ |
+| Multi-delete regression | `cargo test --test project_grouping` in `crates/ant-build-core` | Removing multiple selected files keeps each group's remaining order compact | Passed | ✓ |
+| Group action entrypoint update | `cargo test` in `src-tauri`, `npm run lint`, `npm run build` | Group rename/delete now triggered from right-click menu without breaking the grouped rail build | Passed | ✓ |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
@@ -133,4 +187,4 @@
 | Where am I going? | Add manual smoke verification and tighten runtime discovery / UX edge cases |
 | What's the goal? | Ship a Rust + Tauri control-center-only rewrite with fresh workspace storage |
 | What have I learned? | See `findings.md` |
-| What have I done? | See above |
+| What have I done? | See above; the next active discovery item is Phase 8 grouped file management |

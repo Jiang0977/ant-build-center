@@ -54,11 +54,7 @@ fn uses_java_launcher_when_java_and_ant_launcher_are_available() {
         java_home.to_string_lossy().as_ref()
     );
     assert_eq!(
-        command
-            .env
-            .get("ANT_HOME")
-            .expect("ANT_HOME env")
-            .as_str(),
+        command.env.get("ANT_HOME").expect("ANT_HOME env").as_str(),
         ant_home.to_string_lossy().as_ref()
     );
 }
@@ -98,11 +94,7 @@ fn falls_back_to_ant_script_when_launcher_is_missing() {
     );
     assert!(!command.env.contains_key("JAVA_HOME"));
     assert_eq!(
-        command
-            .env
-            .get("ANT_HOME")
-            .expect("ANT_HOME env")
-            .as_str(),
+        command.env.get("ANT_HOME").expect("ANT_HOME env").as_str(),
         ant_home.to_string_lossy().as_ref()
     );
 }
@@ -143,8 +135,7 @@ fn discovers_java_and_ant_from_environment_variables() {
         ),
     ]);
 
-    let command =
-        resolve_build_command_with_env(&request, &env).expect("resolve command from env");
+    let command = resolve_build_command_with_env(&request, &env).expect("resolve command from env");
 
     assert_eq!(command.program, ant_bin_dir.join(ant_binary_name()));
     assert_eq!(
@@ -156,11 +147,7 @@ fn discovers_java_and_ant_from_environment_variables() {
         java_home.to_string_lossy().as_ref()
     );
     assert_eq!(
-        command
-            .env
-            .get("ANT_HOME")
-            .expect("ANT_HOME env")
-            .as_str(),
+        command.env.get("ANT_HOME").expect("ANT_HOME env").as_str(),
         ant_home.to_string_lossy().as_ref()
     );
 }

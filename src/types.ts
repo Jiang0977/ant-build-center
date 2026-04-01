@@ -5,6 +5,13 @@ export interface RuntimeSettings {
   antHome: string
 }
 
+export interface GroupRecord {
+  id: string
+  name: string
+  expanded: boolean
+  system: boolean
+}
+
 export interface ProjectRecord {
   id: string
   path: string
@@ -13,11 +20,14 @@ export interface ProjectRecord {
   targets: string[]
   lastStatus: BuildStatus
   lastRunAt: string | null
+  groupId: string
+  order: number
 }
 
 export interface Workspace {
   version: number
   runtime: RuntimeSettings
+  groups: GroupRecord[]
   projects: ProjectRecord[]
 }
 

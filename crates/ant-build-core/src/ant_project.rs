@@ -22,7 +22,10 @@ pub fn inspect_build_file(path: &Path) -> io::Result<BuildFileMetadata> {
         ));
     }
 
-    let project_name = root.attribute("name").unwrap_or("Unnamed Project").to_string();
+    let project_name = root
+        .attribute("name")
+        .unwrap_or("Unnamed Project")
+        .to_string();
     let default_target = root.attribute("default").unwrap_or_default().to_string();
     let targets = root
         .children()

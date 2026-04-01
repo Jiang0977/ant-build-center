@@ -7,7 +7,7 @@ use ant_build_core::runner::{
     execute_build_streaming, BuildEvent, BuildRequest, CancellationToken,
 };
 use ant_build_core::workspace::{
-    load_workspace, save_workspace, ProjectRecord, RuntimeSettings, Workspace,
+    load_workspace, save_workspace, GroupRecord, ProjectRecord, RuntimeSettings, Workspace,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, State};
@@ -29,6 +29,7 @@ struct RunningBuild {
 struct WorkspaceDto {
     version: u32,
     runtime: RuntimeSettingsDto,
+    groups: Vec<GroupRecordDto>,
     projects: Vec<ProjectRecordDto>,
 }
 
@@ -41,6 +42,15 @@ struct RuntimeSettingsDto {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct GroupRecordDto {
+    id: String,
+    name: String,
+    expanded: bool,
+    system: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ProjectRecordDto {
     id: String,
     path: String,
@@ -49,6 +59,8 @@ struct ProjectRecordDto {
     targets: Vec<String>,
     last_status: String,
     last_run_at: Option<String>,
+    group_id: String,
+    order: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -100,7 +112,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_workspace,
             add_projects,
+            create_group,
+            rename_group,
+            set_group_expanded,
+            delete_group,
+            move_projects,
             remove_project,
+            remove_projects,
             save_runtime,
             run_build,
             cancel_build
@@ -116,11 +134,16 @@ fn get_workspace(state: State<'_, AppState>) -> Result<WorkspaceDto, String> {
 }
 
 #[tauri::command]
-fn add_projects(state: State<'_, AppState>, paths: Vec<String>) -> Result<WorkspaceDto, String> {
+fn add_projects(
+    state: State<'_, AppState>,
+    paths: Vec<String>,
+    target_group_id: Option<String>,
+) -> Result<WorkspaceDto, String> {
     let mut workspace = load_current_workspace(&state).map_err(|error| {
         clear_running_build(&state.running_build);
         error.to_string()
     })?;
+    let resolved_group_id = resolve_target_group_id(&workspace, target_group_id.as_deref())?;
 
     for raw_path in paths {
         let normalized = normalize_path(&raw_path);
@@ -134,17 +157,87 @@ fn add_projects(state: State<'_, AppState>, paths: Vec<String>) -> Result<Worksp
 
         let metadata =
             inspect_build_file(Path::new(&normalized)).map_err(|error| error.to_string())?;
-        workspace.projects.push(ProjectRecord {
-            id: Uuid::new_v4().to_string(),
-            path: normalized,
-            name: metadata.project_name,
-            default_target: metadata.default_target,
-            targets: metadata.targets,
-            last_status: "idle".to_string(),
-            last_run_at: None,
-        });
+        workspace
+            .add_project_to_group(
+                ProjectRecord {
+                    id: Uuid::new_v4().to_string(),
+                    path: normalized,
+                    name: metadata.project_name,
+                    default_target: metadata.default_target,
+                    targets: metadata.targets,
+                    last_status: "idle".to_string(),
+                    last_run_at: None,
+                    group_id: resolved_group_id.clone(),
+                    order: 0,
+                },
+                &resolved_group_id,
+            )
+            .map_err(|error| error.to_string())?;
     }
 
+    save_current_workspace(&state, &workspace).map_err(|error| error.to_string())?;
+    Ok(workspace.into())
+}
+
+#[tauri::command]
+fn create_group(state: State<'_, AppState>, name: String) -> Result<WorkspaceDto, String> {
+    let mut workspace = load_current_workspace(&state).map_err(|error| error.to_string())?;
+    workspace
+        .create_group(Uuid::new_v4().to_string(), &name)
+        .map_err(|error| error.to_string())?;
+    save_current_workspace(&state, &workspace).map_err(|error| error.to_string())?;
+    Ok(workspace.into())
+}
+
+#[tauri::command]
+fn rename_group(
+    state: State<'_, AppState>,
+    group_id: String,
+    name: String,
+) -> Result<WorkspaceDto, String> {
+    let mut workspace = load_current_workspace(&state).map_err(|error| error.to_string())?;
+    workspace
+        .rename_group(&group_id, &name)
+        .map_err(|error| error.to_string())?;
+    save_current_workspace(&state, &workspace).map_err(|error| error.to_string())?;
+    Ok(workspace.into())
+}
+
+#[tauri::command]
+fn set_group_expanded(
+    state: State<'_, AppState>,
+    group_id: String,
+    expanded: bool,
+) -> Result<WorkspaceDto, String> {
+    let mut workspace = load_current_workspace(&state).map_err(|error| error.to_string())?;
+    workspace
+        .set_group_expanded(&group_id, expanded)
+        .map_err(|error| error.to_string())?;
+    save_current_workspace(&state, &workspace).map_err(|error| error.to_string())?;
+    Ok(workspace.into())
+}
+
+#[tauri::command]
+fn delete_group(state: State<'_, AppState>, group_id: String) -> Result<WorkspaceDto, String> {
+    let mut workspace = load_current_workspace(&state).map_err(|error| error.to_string())?;
+    workspace
+        .delete_group(&group_id)
+        .map_err(|error| error.to_string())?;
+    save_current_workspace(&state, &workspace).map_err(|error| error.to_string())?;
+    Ok(workspace.into())
+}
+
+#[tauri::command]
+fn move_projects(
+    state: State<'_, AppState>,
+    project_ids: Vec<String>,
+    target_group_id: String,
+    target_index: usize,
+) -> Result<WorkspaceDto, String> {
+    let mut workspace = load_current_workspace(&state).map_err(|error| error.to_string())?;
+    workspace
+        .move_projects(&project_ids, &target_group_id, target_index)
+        .map_err(|error| error.to_string())?;
     save_current_workspace(&state, &workspace).map_err(|error| error.to_string())?;
     Ok(workspace.into())
 }
@@ -153,8 +246,21 @@ fn add_projects(state: State<'_, AppState>, paths: Vec<String>) -> Result<Worksp
 fn remove_project(state: State<'_, AppState>, project_id: String) -> Result<WorkspaceDto, String> {
     let mut workspace = load_current_workspace(&state).map_err(|error| error.to_string())?;
     workspace
-        .projects
-        .retain(|project| project.id != project_id);
+        .remove_project(&project_id)
+        .map_err(|error| error.to_string())?;
+    save_current_workspace(&state, &workspace).map_err(|error| error.to_string())?;
+    Ok(workspace.into())
+}
+
+#[tauri::command]
+fn remove_projects(
+    state: State<'_, AppState>,
+    project_ids: Vec<String>,
+) -> Result<WorkspaceDto, String> {
+    let mut workspace = load_current_workspace(&state).map_err(|error| error.to_string())?;
+    workspace
+        .remove_projects(&project_ids)
+        .map_err(|error| error.to_string())?;
     save_current_workspace(&state, &workspace).map_err(|error| error.to_string())?;
     Ok(workspace.into())
 }
@@ -401,6 +507,7 @@ impl From<Workspace> for WorkspaceDto {
         Self {
             version: value.version,
             runtime: value.runtime.into(),
+            groups: value.groups.into_iter().map(Into::into).collect(),
             projects: value.projects.into_iter().map(Into::into).collect(),
         }
     }
@@ -424,6 +531,17 @@ impl From<RuntimeSettingsDto> for RuntimeSettings {
     }
 }
 
+impl From<GroupRecord> for GroupRecordDto {
+    fn from(value: GroupRecord) -> Self {
+        Self {
+            id: value.id,
+            name: value.name,
+            expanded: value.expanded,
+            system: value.system,
+        }
+    }
+}
+
 impl From<ProjectRecord> for ProjectRecordDto {
     fn from(value: ProjectRecord) -> Self {
         Self {
@@ -434,6 +552,26 @@ impl From<ProjectRecord> for ProjectRecordDto {
             targets: value.targets,
             last_status: value.last_status,
             last_run_at: value.last_run_at,
+            group_id: value.group_id,
+            order: value.order,
         }
     }
+}
+
+fn resolve_target_group_id(
+    workspace: &Workspace,
+    requested_group_id: Option<&str>,
+) -> Result<String, String> {
+    if let Some(group_id) = requested_group_id {
+        if workspace.groups.iter().any(|group| group.id == group_id) {
+            return Ok(group_id.to_string());
+        }
+        return Err("Group not found.".to_string());
+    }
+
+    workspace
+        .groups
+        .first()
+        .map(|group| group.id.clone())
+        .ok_or_else(|| "Workspace has no groups.".to_string())
 }

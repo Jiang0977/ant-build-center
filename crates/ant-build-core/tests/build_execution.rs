@@ -38,13 +38,9 @@ fn streams_stdout_and_stderr_and_reports_success() {
 
     let events = Arc::new(Mutex::new(Vec::new()));
     let event_sink = Arc::clone(&events);
-    let summary = execute_build_streaming(
-        &request,
-        CancellationToken::new(),
-        move |event| {
-            event_sink.lock().expect("lock events").push(event);
-        },
-    )
+    let summary = execute_build_streaming(&request, CancellationToken::new(), move |event| {
+        event_sink.lock().expect("lock events").push(event);
+    })
     .expect("execute build");
 
     let captured = events.lock().expect("lock events");
