@@ -5,20 +5,20 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --paper: #f3ede3;
-  --panel: #fff9f0;
-  --line: rgba(33, 27, 20, 0.12);
-  --ink: #1b1612;
-  --ink-soft: #f5eadc;
-  --muted: #76695c;
-  --accent: #d65715;
-  --accent-strong: #8a2b0a;
-  --success: #1e8754;
-  --danger: #ba4229;
-  --shadow: 0 28px 60px rgba(73, 46, 26, 0.12);
+  --paper: #edf2f8;
+  --panel: #f7fafe;
+  --line: rgba(84, 100, 124, 0.16);
+  --ink: #19232f;
+  --ink-soft: #f5f9ff;
+  --muted: #69788b;
+  --accent: #2f6fed;
+  --accent-strong: #1f4fa8;
+  --success: #1f8c5d;
+  --danger: #c24c4c;
+  --shadow: 0 28px 60px rgba(18, 28, 45, 0.11);
 
-  --body-font: 'Bahnschrift', 'Aptos', 'Microsoft YaHei UI', sans-serif;
-  --display-font: 'Arial Narrow', 'Bahnschrift Condensed', 'Impact', sans-serif;
+  --body-font: 'Aptos', 'Bahnschrift', 'Microsoft YaHei UI', sans-serif;
+  --display-font: 'Bahnschrift SemiCondensed', 'DIN Alternate', 'Aptos Display', 'Microsoft YaHei UI', sans-serif;
   --mono-font: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
 }
 
@@ -33,9 +33,9 @@ body {
   font-family: var(--body-font);
   color: var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(214, 87, 21, 0.16), transparent 30%),
-    radial-gradient(circle at top right, rgba(33, 27, 20, 0.09), transparent 24%),
-    linear-gradient(180deg, #f6f1e9 0%, #f1e8dc 42%, #e8ddd0 100%);
+    radial-gradient(circle at top left, rgba(47, 111, 237, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(124, 151, 183, 0.15), transparent 22%),
+    linear-gradient(180deg, #f5f8fc 0%, #edf3f9 44%, #e6edf4 100%);
 }
 
 button,

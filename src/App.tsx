@@ -2,6 +2,7 @@ import {
   startTransition,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
 } from 'react'
 
@@ -43,14 +44,16 @@ function App() {
       ? 'Ant Build Center ready. Load a build.xml file to begin.'
       : 'Browser preview mode. Tauri commands are disabled outside the desktop shell.',
   ])
-  const [statusLine, setStatusLine] = useState(
+  const [, setStatusLine] = useState(
     isTauriEnvironment()
       ? 'Workspace loading…'
       : 'Browser preview mode: use the desktop shell for live commands.',
   )
-  const [isHydrating, setIsHydrating] = useState(true)
+  const [, setIsHydrating] = useState(true)
   const [isRunning, setIsRunning] = useState(false)
   const [isSavingRuntime, setIsSavingRuntime] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const consoleScreenRef = useRef<HTMLPreElement | null>(null)
 
   const selectedProject =
     workspace.projects.find((project) => project.id === selectedProjectId) ?? null
@@ -151,6 +154,45 @@ function App() {
     return () => cleanup()
   }, [])
 
+  useEffect(() => {
+    if (!isRunning) {
+      return
+    }
+
+    const screen = consoleScreenRef.current
+    if (!screen) {
+      return
+    }
+
+    screen.scrollTop = screen.scrollHeight
+  }, [consoleLines, isRunning])
+
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      return
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setRuntimeDraft(workspace.runtime)
+        setIsSettingsOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isSettingsOpen, workspace.runtime])
+
+  function openSettingsPanel() {
+    setRuntimeDraft(workspace.runtime)
+    setIsSettingsOpen(true)
+  }
+
+  function closeSettingsPanel() {
+    setRuntimeDraft(workspace.runtime)
+    setIsSettingsOpen(false)
+  }
+
   async function handleAddProjects() {
     try {
       const nextWorkspace = await addProjects()
@@ -166,7 +208,7 @@ function App() {
     try {
       const nextWorkspace = await removeProject(project.id)
       applyWorkspace(nextWorkspace)
-      appendConsoleLine(`[system] Removed ${project.name}.`)
+      appendConsoleLine(`[system] Removed ${getProjectDisplayName(project)}.`)
       setStatusLine(`${nextWorkspace.projects.length} tracked projects.`)
     } catch (error) {
       appendConsoleLine(`[system] ${(error as Error).message}`)
@@ -181,6 +223,7 @@ function App() {
       applyWorkspace(nextWorkspace)
       appendConsoleLine('[system] Runtime settings saved.')
       setStatusLine('Runtime settings saved.')
+      setIsSettingsOpen(false)
     } catch (error) {
       appendConsoleLine(`[system] ${(error as Error).message}`)
       setStatusLine('Failed to save runtime settings.')
@@ -195,10 +238,10 @@ function App() {
     }
 
     setConsoleLines([
-      `[system] Starting ${selectedProject.name} (${selectedTarget || 'default target'})`,
+      `[system] Starting ${getProjectDisplayName(selectedProject)} (${selectedTarget || 'default target'})`,
     ])
     setIsRunning(true)
-    setStatusLine(`Running ${selectedProject.name}…`)
+    setStatusLine(`Running ${getProjectDisplayName(selectedProject)}…`)
 
     try {
       await runBuild(selectedProject.id, selectedTarget)
@@ -222,70 +265,55 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="hero-bar">
-        <div className="hero-copy">
-          <p className="eyebrow">Rust + Tauri Control Center</p>
-          <h1>Ant Build Center</h1>
-          <p className="hero-text">
-            A narrowed, modern rebuild focused on one job: keep your Ant projects
-            visible, runnable, and inspectable from a single desktop control room.
-          </p>
-        </div>
-        <div className="hero-status">
-          <span className="status-label">Status line</span>
-          <strong>{statusLine}</strong>
-          <span className="status-hint">
-            {isHydrating ? 'Hydrating workspace…' : `${workspace.projects.length} tracked projects`}
-          </span>
-        </div>
-      </header>
-
       <main className="control-grid">
         <aside className="project-rail">
           <div className="rail-head">
-            <div>
-              <p className="section-label">Project Library</p>
-              <h2>Tracked build.xml files</h2>
+            <div className="rail-actions">
+              <button
+                className="action-button ghost"
+                onClick={openSettingsPanel}
+                type="button"
+              >
+                Settings
+              </button>
+              <button
+                className="action-button primary"
+                disabled={!isTauriEnvironment()}
+                onClick={handleAddProjects}
+                type="button"
+              >
+                Add files
+              </button>
             </div>
-            <button
-              className="action-button primary"
-              disabled={!isTauriEnvironment()}
-              onClick={handleAddProjects}
-              type="button"
-            >
-              Add files
-            </button>
           </div>
 
-          <div className="project-list">
-            {workspace.projects.length === 0 ? (
-              <div className="empty-card">
-                <p>No projects yet.</p>
-                <span>Use “Add files” to register one or more Ant build files.</span>
-              </div>
-            ) : null}
+          <div className="project-list-frame">
+            <div className="project-list">
+              {workspace.projects.length === 0 ? (
+                <div className="empty-card">
+                  <p>No projects yet.</p>
+                  <span>Use “Add files” to register one or more Ant build files.</span>
+                </div>
+              ) : null}
 
-            {workspace.projects.map((project) => {
-              const isActive = project.id === selectedProjectId
-              return (
-                <button
-                  key={project.id}
-                  className={`project-card${isActive ? ' active' : ''}`}
-                  onClick={() => setSelectedProjectId(project.id)}
-                  type="button"
-                >
-                  <span className={`status-dot status-${project.lastStatus}`} />
-                  <div className="project-card-copy">
-                    <strong>{project.name}</strong>
-                    <span>{project.path}</span>
-                    <small>
-                      {project.targets.length} targets
-                      {project.defaultTarget ? ` · default ${project.defaultTarget}` : ''}
-                    </small>
-                  </div>
-                </button>
-              )
-            })}
+              {workspace.projects.map((project) => {
+                const isActive = project.id === selectedProjectId
+                return (
+                  <button
+                    key={project.id}
+                    className={`project-card${isActive ? ' active' : ''}`}
+                    onClick={() => setSelectedProjectId(project.id)}
+                    title={project.path}
+                    type="button"
+                  >
+                    <span className={`status-dot status-${project.lastStatus}`} />
+                    <div className="project-card-copy">
+                      <strong>{getProjectDisplayName(project)}</strong>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </aside>
 
@@ -293,19 +321,28 @@ function App() {
           <div className="panel-card focus-card">
             <div className="focus-head">
               <div>
-                <p className="section-label">Selected Project</p>
-                <h2>{selectedProject?.name ?? 'Choose a build file'}</h2>
+                <p className="section-label">Selected File</p>
+                <h2>
+                  {selectedProject ? getProjectDisplayName(selectedProject) : 'Choose a build file'}
+                </h2>
               </div>
-              {selectedProject ? (
-                <button
-                  className="action-button ghost"
-                  disabled={!isTauriEnvironment() || isRunning}
-                  onClick={() => void handleRemoveProject(selectedProject)}
-                  type="button"
-                >
-                  Remove
-                </button>
-              ) : null}
+              <div className="focus-actions">
+                {selectedProject ? (
+                  <span className={`status-pill status-${selectedProject.lastStatus}`}>
+                    {formatBuildStatus(selectedProject.lastStatus)}
+                  </span>
+                ) : null}
+                {selectedProject ? (
+                  <button
+                    className="action-button ghost"
+                    disabled={!isTauriEnvironment() || isRunning}
+                    onClick={() => void handleRemoveProject(selectedProject)}
+                    type="button"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             {selectedProject ? (
@@ -373,14 +410,56 @@ function App() {
             )}
           </div>
 
-          <div className="panel-card runtime-card">
-            <div className="runtime-copy">
-              <p className="section-label">Runtime Overrides</p>
-              <h2>Java / Ant resolution</h2>
-              <span>
-                These values override environment discovery. Leave them blank to use
-                `JAVA_HOME`, `ANT_HOME`, and `PATH`.
+          <div className="panel-card terminal-card">
+            <div className="terminal-head">
+              <div>
+                <p className="section-label">Live Output</p>
+                <h2>Build console</h2>
+              </div>
+              <span className={`run-indicator${isRunning ? ' hot' : ''}`}>
+                {isRunning ? 'RUNNING' : 'IDLE'}
               </span>
+            </div>
+
+            <pre className="terminal-screen" ref={consoleScreenRef}>
+              {consoleLines.map((line, index) => (
+                <code key={`${line}-${index}`}>{line}</code>
+              ))}
+            </pre>
+          </div>
+        </section>
+      </main>
+
+      {isSettingsOpen ? (
+        <div
+          className="modal-backdrop"
+          onClick={closeSettingsPanel}
+          role="presentation"
+        >
+          <div
+            aria-labelledby="runtime-overrides-title"
+            aria-modal="true"
+            className="modal-card"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="modal-head">
+              <div className="runtime-copy">
+                <p className="section-label">Settings</p>
+                <h2 id="runtime-overrides-title">Runtime Overrides</h2>
+                <span>
+                  These values override environment discovery. Leave them blank to
+                  use `JAVA_HOME`, `ANT_HOME`, and `PATH`.
+                </span>
+              </div>
+              <button
+                aria-label="Close settings"
+                className="action-button ghost icon-button"
+                onClick={closeSettingsPanel}
+                type="button"
+              >
+                Close
+              </button>
             </div>
 
             <div className="runtime-form">
@@ -414,6 +493,13 @@ function App() {
 
             <div className="runtime-actions">
               <button
+                className="action-button ghost"
+                onClick={closeSettingsPanel}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
                 className="action-button secondary"
                 disabled={!isTauriEnvironment() || isSavingRuntime || isRunning}
                 onClick={() => void handleSaveRuntime()}
@@ -423,28 +509,29 @@ function App() {
               </button>
             </div>
           </div>
-
-          <div className="panel-card terminal-card">
-            <div className="terminal-head">
-              <div>
-                <p className="section-label">Live Output</p>
-                <h2>Build console</h2>
-              </div>
-              <span className={`run-indicator${isRunning ? ' hot' : ''}`}>
-                {isRunning ? 'RUNNING' : 'IDLE'}
-              </span>
-            </div>
-
-            <pre className="terminal-screen">
-              {consoleLines.map((line, index) => (
-                <code key={`${line}-${index}`}>{line}</code>
-              ))}
-            </pre>
-          </div>
-        </section>
-      </main>
+        </div>
+      ) : null}
     </div>
   )
+}
+
+function formatBuildStatus(status: ProjectRecord['lastStatus']) {
+  switch (status) {
+    case 'success':
+      return 'Success'
+    case 'failure':
+      return 'Failure'
+    case 'running':
+      return 'Running'
+    default:
+      return 'Idle'
+  }
+}
+
+function getProjectDisplayName(project: ProjectRecord) {
+  const normalizedPath = project.path.replace(/\\/g, '/')
+  const segments = normalizedPath.split('/')
+  return segments[segments.length - 1] || project.name
 }
 
 function formatDuration(durationMs: number) {
