@@ -1,0 +1,12 @@
+[package]
+name = "ant-build-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+roxmltree = "0.21.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+
+[dev-dependencies]
+tempfile = "3.23.0"
