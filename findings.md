@@ -7,6 +7,7 @@
 - Do not preserve compatibility with the old `workspace.json`.
 - Fix the development documentation now and record implementation progress in files.
 - Use TDD for ongoing implementation.
+- Open the desktop app maximized by default, reinstall the updated package on the current system, push the change to GitHub, and refresh Releases.
 
 ## Research Findings
 - The legacy app was broader than the original README implied: it had a single-file launcher, a full control center, Windows registry integration, installer scripts, single-instance logic, desktop shortcut creation, and PyInstaller packaging.
@@ -25,6 +26,13 @@
 - Ubuntu 24.04 can run the Tauri shell locally after installing the official Linux dependency set; the previous GTK/WebKit blocker is gone.
 - Repository/app naming is already standardized in package metadata on `Ant Build Center`, but some docs, repository URLs, and example XML content had stale `ant-build-menu` / `Ant Build Menu` references that should be removed together.
 - The GitHub repository can be renamed in place with `gh repo rename ant-build-center --yes`; after rename, the local `origin` remote automatically follows the new `git@github.com:Jiang0977/ant-build-center.git` path.
+- The current Tauri window configuration has not enabled maximized startup in `src-tauri/tauri.conf.json`.
+- The desktop single-instance handler currently unminimizes, shows, and focuses the `main` window, but does not re-assert maximized state when the user launches the app again while it is already running.
+- GitHub CLI is authenticated for `Jiang0977`, the repo default branch is still `master`, and the latest published GitHub release is `Ant Build Center v1.1.0` / tag `v1.1.0`.
+- Tauri's local schema confirms both a `maximized` window config field and a runtime `maximize` window command are available on this repo's current toolchain.
+- `npm run lint` can fail after local Tauri packaging because generated JS assets under `src-tauri/target` are valid build outputs but not valid ESLint inputs; the repo-level ignore list should exclude that directory.
+- Real desktop smoke verification on 2026-04-02 confirms the installed `1.1.1` app opens maximized rather than fullscreen on the 1920x1080 monitor: the captured active-window image is 1872x1048 with the title bar still visible.
+- GitHub release `v1.1.1` now exists for this patch and publishes the rebuilt Linux asset `Ant.Build.Center_1.1.1_amd64.deb`.
 
 ## Grouped File Management Discovery (2026-04-01)
 - The current React/Tauri app still renders the left rail from a flat `workspace.projects` list in `src/App.tsx`.
@@ -62,6 +70,8 @@
 | Keep `src-tauri` as a thin adapter over `ant-build-core` | The shell should own window/event/state wiring, not domain logic |
 | Put grouped workspace mutations into `ant-build-core::workspace::Workspace` methods | This let Tauri stay a thin command adapter and kept the TDD surface on public behavior rather than UI internals |
 | Persist group expanded/collapsed state through the backend instead of keeping it as frontend-only UI state | The grouped workspace schema already carries `expanded`, and users expect the rail shape to survive reloads |
+| Enforce maximized state at both config and shell activation points | Setting the default window config covers the initial launch, while the shell should also restore maximization when the single running instance is reopened |
+| Bump the app from `1.1.0` to `1.1.1` for this change | Default-maximized launch is a narrowly scoped, user-visible behavior fix that fits a patch release |
 
 ## Issues Encountered
 | Issue | Resolution |

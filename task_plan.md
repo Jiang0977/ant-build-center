@@ -4,10 +4,10 @@
 Replace the legacy Python/Tk desktop app with a Rust + Tauri control-center-only app that manages Ant build files, runs a single build with live logs, and uses a fresh workspace format.
 
 ## Current Feature Focus
-Design and implement a grouped file-management experience for the left file rail: persisted groups, group rename, multi-select drag and drop, guarded group deletion, and group-aware file adding.
+Make the desktop app launch maximized by default, reinstall a freshly packaged build on the current Linux host, and publish the patch release artifacts.
 
 ## Current Phase
-Phase 8
+Phase 10
 
 ## Phases
 
@@ -68,6 +68,14 @@ Phase 8
 - [ ] Run verification and manual smoke coverage
 - **Status:** in_progress
 
+### Phase 10: Maximized Launch Packaging & Release
+- [x] Lock the scope to maximized-by-default launch behavior plus release chores
+- [x] Inspect current window defaults, packaging metadata, and GitHub release state
+- [x] Implement maximized launch behavior and add regression coverage
+- [x] Build, install, and smoke test the packaged app on the current Linux host
+- [x] Review, commit, push, and refresh GitHub Releases
+- **Status:** complete
+
 ## Key Questions
 1. What is the smallest control-center feature set worth shipping in v0.1?
 2. Which runtime settings must stay user-configurable in the first Tauri release?
@@ -93,6 +101,7 @@ Phase 8
 | Persist groups as first-class workspace state, keep files as the buildable unit, require guarded non-empty group deletion, and support group-aware add-file flows | The user agreed to the premise set that locks the feature boundary before implementation |
 | Use Approach A: flat `projects[]` plus first-class `groups[]`, with each project carrying `groupId` and per-group `order` | This preserves the current `projectId`-driven build path while still delivering persisted grouping and drag/drop organization |
 | Support user-created group renaming in the first grouped release | The user explicitly approved rename support before implementation started |
+| Ship the maximized-by-default tweak as patch release `v1.1.1` | The requested behavior is a user-visible polish change on top of the current `v1.1.0` release, so a patch bump is the narrowest compatible release |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -110,3 +119,4 @@ Phase 8
 - Repository naming should now be standardized on `Ant Build Center`; old `ant-build-menu` references should only remain when describing the legacy implementation.
 - `lastRunAt` in the persisted workspace is currently stored as a numeric Unix timestamp string on this host, so display formatting must continue to support epoch-style values.
 - For Linux packaging on this repo, the visible desktop file must be identifier-based (`io.github.jiang0977.ant-build-center.desktop`), while Tauri's default product-name desktop file should remain hidden to avoid GNOME/Wayland dock identity mismatches.
+- The maximized-startup release work now sets `maximized: true` in Tauri config and reasserts maximization from the single-instance/setup path so relaunches stay consistent.

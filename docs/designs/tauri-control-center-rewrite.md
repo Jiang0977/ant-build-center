@@ -21,11 +21,12 @@ Ship a desktop control center that lets a user:
 2. Rename user-created groups.
 3. Add one or more `build.xml` files into a chosen group.
 4. Reorganize files with Ctrl/Cmd or Shift multi-select plus drag-and-drop.
-5. Inspect the project name and available targets.
-6. Choose one target and run a single Ant build.
-7. Watch live build output.
-8. Cancel a running build.
-9. Persist grouped workspace state and runtime settings.
+5. Open the main window maximized by default.
+6. Inspect the project name and available targets.
+7. Choose one target and run a single Ant build.
+8. Watch live build output.
+9. Cancel a running build.
+10. Persist grouped workspace state and runtime settings.
 
 ## 3. Non-Goals
 
@@ -47,6 +48,7 @@ As a developer who works with multiple Ant projects, I want one desktop app that
 ```text
 App launch
   -> load workspace
+  -> force the main window into maximized state
   -> if needed, upgrade flat workspace draft into grouped workspace
   -> render group list + tracked files
 
@@ -190,6 +192,18 @@ Notes:
 - `order` is normalized per group after add, move, and delete-group operations.
 
 ## 8. Runtime Behavior
+
+### 8.0 Window launch behavior
+
+```text
+App starts
+  -> Tauri creates the main window from config with maximized enabled
+  -> setup path reasserts maximized state on the main window
+
+Second launch while already running
+  -> single-instance plugin focuses the existing main window
+  -> shell reasserts maximized state before returning focus to the user
+```
 
 ### 8.1 Load workspace
 
