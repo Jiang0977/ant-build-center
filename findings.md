@@ -23,6 +23,8 @@
 - The default Vite demo UI has been replaced with a project-library / selected-project / runtime / terminal layout aligned to the planned Tauri command contracts.
 - The Tauri shell now exposes workspace commands plus build execution / cancellation wiring through `build-log` and `build-finished` events.
 - Ubuntu 24.04 can run the Tauri shell locally after installing the official Linux dependency set; the previous GTK/WebKit blocker is gone.
+- Repository/app naming is already standardized in package metadata on `Ant Build Center`, but some docs, repository URLs, and example XML content had stale `ant-build-menu` / `Ant Build Menu` references that should be removed together.
+- The GitHub repository can be renamed in place with `gh repo rename ant-build-center --yes`; after rename, the local `origin` remote automatically follows the new `git@github.com:Jiang0977/ant-build-center.git` path.
 
 ## Grouped File Management Discovery (2026-04-01)
 - The current React/Tauri app still renders the left rail from a flat `workspace.projects` list in `src/App.tsx`.

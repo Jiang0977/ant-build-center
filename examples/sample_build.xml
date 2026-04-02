@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="AntBuildMenuExample" default="hello" basedir=".">
+<project name="AntBuildCenterExample" default="hello" basedir=".">
     
     <!-- 项目描述 -->
     <description>
-        Ant Build Menu 示例项目
+        Ant Build Center 示例项目
         演示如何使用右键菜单运行Ant构建任务
     </description>
     
@@ -68,7 +68,7 @@
         <jar destfile="${dist.dir}/example-app.jar" basedir="${build.dir}">
             <manifest>
                 <attribute name="Main-Class" value="Main"/>
-                <attribute name="Implementation-Title" value="Ant Build Menu Example"/>
+                <attribute name="Implementation-Title" value="Ant Build Center Example"/>
                 <attribute name="Implementation-Version" value="1.0"/>
                 <attribute name="Built-By" value="${user.name}"/>
                 <attribute name="Built-Date" value="${TODAY}"/>
@@ -89,7 +89,7 @@
 &lt;html&gt;
 &lt;head&gt;&lt;title&gt;项目文档&lt;/title&gt;&lt;/head&gt;
 &lt;body&gt;
-&lt;h1&gt;Ant Build Menu 示例项目&lt;/h1&gt;
+&lt;h1&gt;Ant Build Center 示例项目&lt;/h1&gt;
 &lt;p&gt;这是一个演示项目，展示如何使用Ant构建脚本。&lt;/p&gt;
 &lt;p&gt;生成时间: ${TODAY}&lt;/p&gt;
 &lt;/body&gt;
@@ -127,7 +127,7 @@
     <target name="hello" description="显示欢迎消息">
         <echo message=""/>
         <echo message="========================================="/>
-        <echo message="  欢迎使用 Ant Build Menu 示例项目!"/>
+        <echo message="  欢迎使用 Ant Build Center 示例项目!"/>
         <echo message="========================================="/>
         <echo message=""/>
         <echo message="可用的构建目标:"/>
@@ -160,13 +160,13 @@
     
     <!-- 帮助目标 -->
     <target name="help" description="显示帮助信息">
-        <echo message="Ant Build Menu 示例项目帮助"/>
+        <echo message="Ant Build Center 示例项目帮助"/>
         <echo message=""/>
-        <echo message="这个build.xml文件演示了Ant Build Menu的各种功能:"/>
+        <echo message="这个build.xml文件演示了Ant Build Center的各种功能:"/>
         <echo message=""/>
         <echo message="快速开始:"/>
         <echo message="1. 确保已安装Java和Apache Ant"/>
-        <echo message="2. 安装Ant Build Menu工具"/>
+        <echo message="2. 安装Ant Build Center工具"/>
         <echo message="3. 右键点击此文件，选择'运行 Ant 构建'"/>
         <echo message=""/>
         <echo message="目标说明:"/>

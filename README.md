@@ -1,6 +1,6 @@
 # Ant Build Center
 
-Rust + Tauri rewrite of the old `ant-build-menu` project.
+Rust + Tauri desktop control center for Ant workflows.
 
 This branch intentionally narrows the product:
 

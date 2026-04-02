@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document fixes the implementation direction for rewriting `ant-build-menu` as a Rust + Tauri desktop application.
+This document fixes the implementation direction for Ant Build Center as a Rust + Tauri desktop application.
 
 The rewrite still intentionally narrows scope:
 

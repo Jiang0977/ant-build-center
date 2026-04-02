@@ -30,7 +30,7 @@
     "targets": "all",
     "publisher": "Jiang0977",
     "category": "DeveloperTool",
-    "homepage": "https://github.com/Jiang0977/ant-build-menu",
+    "homepage": "https://github.com/Jiang0977/ant-build-center",
     "shortDescription": "Grouped Ant build.xml control center for desktop workflows.",
     "longDescription": "Ant Build Center is a desktop control panel for organizing Ant build.xml files into groups, running one target at a time, and watching live logs with persisted workspace state.",
     "icon": [

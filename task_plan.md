@@ -107,3 +107,4 @@ Phase 8
 - The repository cleanup on this branch is intentional: README/docs now describe only the Rust + Tauri rewrite.
 - The current design baseline still lists grouping and drag/drop sorting as out of scope, so this feature needs an explicit design update before implementation.
 - Manual desktop smoke coverage for the new grouped rail has not been run yet in this session; automated verification is green.
+- Repository naming should now be standardized on `Ant Build Center`; old `ant-build-menu` references should only remain when describing the legacy implementation.

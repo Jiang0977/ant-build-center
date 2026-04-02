@@ -173,12 +173,37 @@
 | Duplicate path regression | `cargo test --test project_grouping` and `cargo test --test workspace_bootstrap` in `crates/ant-build-core` | Duplicate add attempts are ignored and duplicate saved paths are deduplicated on load | Passed | ✓ |
 | Multi-delete regression | `cargo test --test project_grouping` in `crates/ant-build-core` | Removing multiple selected files keeps each group's remaining order compact | Passed | ✓ |
 | Group action entrypoint update | `cargo test` in `src-tauri`, `npm run lint`, `npm run build` | Group rename/delete now triggered from right-click menu without breaking the grouped rail build | Passed | ✓ |
+| Repository naming sweep | `rg -n "ant-build-menu|Ant Build Menu|AntBuildMenu|ant build menu" -S . --glob '!**/Cargo.lock' --glob '!package-lock.json'` | Only intentional historical references remain in planning notes | Passed | ✓ |
+| Frontend build after rename alignment | `npm run build` | React/Vite app still builds after naming-only changes | Succeeded | ✓ |
+| GitHub repository rename | `gh repo rename ant-build-center --yes`, `gh repo view --json nameWithOwner,url`, `git remote -v` | Remote repo slug and local `origin` both use `ant-build-center` | Succeeded | ✓ |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
 |-----------|-------|---------|------------|
 | 2026-04-01 16:06 | `cargo tauri` unavailable | 1 | Installed `@tauri-apps/cli` and used `npx tauri` |
 | 2026-04-01 16:27 | Tauri crate required missing GTK/WebKit system libraries on this Linux host | 1 | Installed the official Ubuntu dependency set and unblocked local shell compilation |
+
+## Session: 2026-04-02
+
+### Repository Naming Alignment
+- **Status:** complete
+- Actions taken:
+  - Audited user-facing strings and metadata for stale `ant-build-menu` / `Ant Build Menu` references.
+  - Updated README and design-doc wording to use `Ant Build Center` as the current repository/app name.
+  - Updated Tauri/Cargo repository URLs to point at the renamed `ant-build-center` repository path.
+  - Updated the sample Ant XML files so their example project name and help text match `Ant Build Center`.
+  - Renamed the GitHub repository slug to `ant-build-center` with `gh repo rename ant-build-center --yes`.
+  - Verified `origin` now points at `git@github.com:Jiang0977/ant-build-center.git`.
+- Files created/modified:
+  - `README.md`
+  - `docs/designs/tauri-control-center-rewrite.md`
+  - `src-tauri/tauri.conf.json`
+  - `src-tauri/Cargo.toml`
+  - `examples/build.xml`
+  - `examples/sample_build.xml`
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
 
 ## 5-Question Reboot Check
 | Question | Answer |
