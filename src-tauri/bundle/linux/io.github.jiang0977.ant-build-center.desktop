@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ant Build Center
+Comment=Grouped Ant build.xml control center for desktop workflows.
+Exec=ant-build-center
+Icon=ant-build-center
+Categories=Development;
+StartupWMClass=io.github.jiang0977.ant-build-center
+Terminal=false

@@ -106,5 +106,7 @@ Phase 8
 - The first TDD slice will target backend behavior before UI polish.
 - The repository cleanup on this branch is intentional: README/docs now describe only the Rust + Tauri rewrite.
 - The current design baseline still lists grouping and drag/drop sorting as out of scope, so this feature needs an explicit design update before implementation.
-- Manual desktop smoke coverage for the new grouped rail has not been run yet in this session; automated verification is green.
+- Manual desktop smoke coverage was run again on 2026-04-02 after reinstalling the local `.deb`; the installed app launches and the `Selected File` panel renders `LAST RUN` in the requested formatted shape.
 - Repository naming should now be standardized on `Ant Build Center`; old `ant-build-menu` references should only remain when describing the legacy implementation.
+- `lastRunAt` in the persisted workspace is currently stored as a numeric Unix timestamp string on this host, so display formatting must continue to support epoch-style values.
+- For Linux packaging on this repo, the visible desktop file must be identifier-based (`io.github.jiang0977.ant-build-center.desktop`), while Tauri's default product-name desktop file should remain hidden to avoid GNOME/Wayland dock identity mismatches.

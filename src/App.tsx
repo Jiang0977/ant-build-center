@@ -89,6 +89,36 @@ const emptyWorkspace: Workspace = {
   projects: [],
 }
 
+function formatLastRunAt(lastRunAt: string | null): string {
+  if (!lastRunAt) {
+    return 'Never'
+  }
+
+  const numericTimestampPattern = /^-?\d+$/
+  const timestampValue = numericTimestampPattern.test(lastRunAt)
+    ? Number.parseInt(lastRunAt, 10)
+    : null
+  const normalizedTimestamp =
+    timestampValue === null
+      ? lastRunAt
+      : lastRunAt.length <= 10
+        ? timestampValue * 1000
+        : timestampValue
+
+  const date = new Date(normalizedTimestamp)
+  if (Number.isNaN(date.getTime())) {
+    return lastRunAt
+  }
+
+  const pad = (value: number) => value.toString().padStart(2, '0')
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join('-') + ` ${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`
+}
+
 function App() {
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -979,7 +1009,7 @@ function App() {
                   </div>
                   <div>
                     <dt>Last run</dt>
-                    <dd>{selectedProject.lastRunAt || 'Never'}</dd>
+                    <dd>{formatLastRunAt(selectedProject.lastRunAt)}</dd>
                   </div>
                   <div>
                     <dt>Multi-select</dt>

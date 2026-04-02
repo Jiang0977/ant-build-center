@@ -213,3 +213,31 @@
 | What's the goal? | Ship a Rust + Tauri control-center-only rewrite with fresh workspace storage |
 | What have I learned? | See `findings.md` |
 | What have I done? | See above; the next active discovery item is Phase 8 grouped file management |
+
+### Last Run Display Fix
+- **Status:** complete
+- Actions taken:
+  - Updated the `Selected File` panel to format `lastRunAt` as `yyyy-mm-dd hh-mm-ss` instead of showing the raw stored value.
+  - Corrected the formatter to handle the real persisted shape in `~/.config/ant-build-center/workspace-v2.json`, where `lastRunAt` is stored as a Unix timestamp string rather than an ISO datetime.
+  - Rebuilt the frontend, rebuilt the Tauri `.deb`, and reinstalled `ant-build-center` on the local Ubuntu 24.04 host.
+  - Ran a manual smoke check against the installed app and verified the `LAST RUN` field now renders `2026-04-01 21-29-34` for the selected `build_x-web-new.xml` entry.
+- Files created/modified:
+  - `src/App.tsx`
+  - `progress.md`
+  - `findings.md`
+  - `task_plan.md`
+
+### Linux Dock Icon Fix
+- **Status:** complete
+- Actions taken:
+  - Searched local memory and found the prior Tauri/GNOME dock icon fix pattern.
+  - Updated Debian bundling so the default `Ant Build Center.desktop` entry is hidden and an additional visible desktop file named `io.github.jiang0977.ant-build-center.desktop` is installed.
+  - Rebuilt and reinstalled the local `.deb`, then verified the installed desktop files and runtime bus name alignment on Ubuntu 24.04 / GNOME / Wayland.
+  - Added a cross-project Linux desktop identity checklist to `~/.codex/AGENTS.md` so future Tauri packaging work checks this class of issue before handoff.
+- Files created/modified:
+  - `src-tauri/tauri.conf.json`
+  - `src-tauri/bundle/linux/ant-build-center.desktop.hbs`
+  - `src-tauri/bundle/linux/io.github.jiang0977.ant-build-center.desktop`
+  - `progress.md`
+  - `findings.md`
+  - `task_plan.md`

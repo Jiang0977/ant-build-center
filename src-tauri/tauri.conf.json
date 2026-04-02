@@ -42,7 +42,10 @@
     ],
     "linux": {
       "deb": {
-        "desktopTemplate": "bundle/linux/ant-build-center.desktop.hbs"
+        "desktopTemplate": "bundle/linux/ant-build-center.desktop.hbs",
+        "files": {
+          "/usr/share/applications/io.github.jiang0977.ant-build-center.desktop": "bundle/linux/io.github.jiang0977.ant-build-center.desktop"
+        }
       }
     }
   }

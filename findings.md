@@ -82,6 +82,11 @@
 ## Visual/Browser Findings
 - The Tauri single-instance docs confirm the plugin callback receives `(app, args, cwd)` and show focusing the `"main"` window from the running instance.
 - The docs note the single-instance plugin should be the first plugin registered.
+- The persisted desktop workspace on this machine stores `lastRunAt` as a Unix timestamp string like `"1775050174"`, not as an ISO datetime. Frontend display code needs to parse numeric strings as epoch seconds or milliseconds before formatting them.
+- Manual smoke verification against the locally installed `.deb` confirms the `Selected File` panel now renders `LAST RUN` in the requested `yyyy-mm-dd hh-mm-ss` shape. On this host, the selected `build_x-web-new.xml` entry shows `2026-04-01 21-29-34`.
+- The Linux dock icon issue matched an existing local-memory pattern exactly: on GNOME/Wayland, Tauri's default desktop file name derived from `productName` (`Ant Build Center.desktop`) did not align with the runtime GTK app id `io.github.jiang0977.ant-build-center`, so the running window could not be mapped back to the correct launcher/icon reliably.
+- The fix on this project is to keep `app.enableGTKAppId = true`, hide Tauri's default generated desktop file with `NoDisplay=true`, and add a second visible desktop file named `io.github.jiang0977.ant-build-center.desktop` via `bundle.linux.deb.files`.
+- After reinstalling the `.deb`, the system contains both `/usr/share/applications/Ant Build Center.desktop` (hidden) and `/usr/share/applications/io.github.jiang0977.ant-build-center.desktop` (visible). Launching with `gtk-launch io.github.jiang0977.ant-build-center` registers the expected bus name `io.github.jiang0977.ant-build-center`.
 
 ## Prior Design Docs
 - `docs/designs/tauri-control-center-rewrite.md` (2026-04-01 17:05:26 +0800): current rewrite baseline; now partially outdated for left-rail scope because it treats grouping as out of scope.
