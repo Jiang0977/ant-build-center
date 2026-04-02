@@ -32,6 +32,7 @@
 - Tauri's local schema confirms both a `maximized` window config field and a runtime `maximize` window command are available on this repo's current toolchain.
 - `npm run lint` can fail after local Tauri packaging because generated JS assets under `src-tauri/target` are valid build outputs but not valid ESLint inputs; the repo-level ignore list should exclude that directory.
 - Real desktop smoke verification on 2026-04-02 confirms the installed `1.1.1` app opens maximized rather than fullscreen on the 1920x1080 monitor: the captured active-window image is 1872x1048 with the title bar still visible.
+- GitHub release `v1.1.1` now exists for this patch and publishes the rebuilt Linux asset `Ant.Build.Center_1.1.1_amd64.deb`.
 
 ## Grouped File Management Discovery (2026-04-01)
 - The current React/Tauri app still renders the left rail from a flat `workspace.projects` list in `src/App.tsx`.

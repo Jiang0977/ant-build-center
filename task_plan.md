@@ -73,8 +73,8 @@ Phase 10
 - [x] Inspect current window defaults, packaging metadata, and GitHub release state
 - [x] Implement maximized launch behavior and add regression coverage
 - [x] Build, install, and smoke test the packaged app on the current Linux host
-- [ ] Review, commit, push, and refresh GitHub Releases
-- **Status:** in_progress
+- [x] Review, commit, push, and refresh GitHub Releases
+- **Status:** complete
 
 ## Key Questions
 1. What is the smallest control-center feature set worth shipping in v0.1?

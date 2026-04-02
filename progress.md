@@ -204,6 +204,7 @@
   - Switched the startup behavior to maximized at both the Tauri config layer and the single-instance/setup activation path.
   - Added `src-tauri/target` to the global ESLint ignore list so `npm run lint` stays green after local bundle builds.
   - Rebuilt the Linux `.deb`, reinstalled `ant-build-center 1.1.1` locally, and verified the installed app opens maximized via GNOME screenshots.
+  - Reviewed the diff, committed the change set, pushed `codex/default-maximized-release`, and published GitHub release `v1.1.1`.
 - Files created/modified:
   - `task_plan.md`
   - `findings.md`
