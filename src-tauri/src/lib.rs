@@ -24,6 +24,36 @@ struct RunningBuild {
     cancellation_token: CancellationToken,
 }
 
+trait WindowController {
+    type Error;
+
+    fn unminimize(&self) -> Result<(), Self::Error>;
+    fn show(&self) -> Result<(), Self::Error>;
+    fn maximize(&self) -> Result<(), Self::Error>;
+    fn set_focus(&self) -> Result<(), Self::Error>;
+}
+
+#[cfg(desktop)]
+impl<R: tauri::Runtime> WindowController for tauri::WebviewWindow<R> {
+    type Error = tauri::Error;
+
+    fn unminimize(&self) -> Result<(), Self::Error> {
+        tauri::WebviewWindow::unminimize(self)
+    }
+
+    fn show(&self) -> Result<(), Self::Error> {
+        tauri::WebviewWindow::show(self)
+    }
+
+    fn maximize(&self) -> Result<(), Self::Error> {
+        tauri::WebviewWindow::maximize(self)
+    }
+
+    fn set_focus(&self) -> Result<(), Self::Error> {
+        tauri::WebviewWindow::set_focus(self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WorkspaceDto {
@@ -89,9 +119,7 @@ pub fn run() {
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
+                present_main_window(&window);
             }
         }));
     }
@@ -107,6 +135,12 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            #[cfg(desktop)]
+            if let Some(window) = app.get_webview_window("main") {
+                present_main_window(&window);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -502,6 +536,13 @@ fn timestamp_string() -> String {
         .unwrap_or_else(|_| "0".to_string())
 }
 
+fn present_main_window<W: WindowController>(window: &W) {
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.maximize();
+    let _ = window.set_focus();
+}
+
 impl From<Workspace> for WorkspaceDto {
     fn from(value: Workspace) -> Self {
         Self {
@@ -574,4 +615,70 @@ fn resolve_target_group_id(
         .first()
         .map(|group| group.id.clone())
         .ok_or_else(|| "Workspace has no groups.".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+
+    use serde_json::Value;
+
+    use super::{present_main_window, WindowController};
+
+    #[test]
+    fn tauri_config_launches_main_window_maximized() {
+        let config: Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("valid tauri config");
+        let maximized = config["app"]["windows"][0]["maximized"]
+            .as_bool()
+            .expect("maximized flag must be a boolean");
+
+        assert!(maximized, "main window should launch maximized by default");
+    }
+
+    #[derive(Default)]
+    struct MockWindow {
+        operations: RefCell<Vec<String>>,
+    }
+
+    impl WindowController for MockWindow {
+        type Error = ();
+
+        fn unminimize(&self) -> Result<(), Self::Error> {
+            self.operations.borrow_mut().push("unminimize".to_string());
+            Ok(())
+        }
+
+        fn show(&self) -> Result<(), Self::Error> {
+            self.operations.borrow_mut().push("show".to_string());
+            Ok(())
+        }
+
+        fn maximize(&self) -> Result<(), Self::Error> {
+            self.operations.borrow_mut().push("maximize".to_string());
+            Ok(())
+        }
+
+        fn set_focus(&self) -> Result<(), Self::Error> {
+            self.operations.borrow_mut().push("set_focus".to_string());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn present_main_window_restores_maximized_state_before_focusing() {
+        let window = MockWindow::default();
+
+        present_main_window(&window);
+
+        assert_eq!(
+            window.operations.into_inner(),
+            vec![
+                "unminimize".to_string(),
+                "show".to_string(),
+                "maximize".to_string(),
+                "set_focus".to_string(),
+            ]
+        );
+    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "1.1.0"
+version = "1.1.1"
 description = "Ant Build Center desktop control panel for grouped Ant build.xml management."
 authors = ["Jiang0977"]
 license = "MIT"

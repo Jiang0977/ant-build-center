@@ -176,6 +176,11 @@
 | Repository naming sweep | `rg -n "ant-build-menu|Ant Build Menu|AntBuildMenu|ant build menu" -S . --glob '!**/Cargo.lock' --glob '!package-lock.json'` | Only intentional historical references remain in planning notes | Passed | ✓ |
 | Frontend build after rename alignment | `npm run build` | React/Vite app still builds after naming-only changes | Succeeded | ✓ |
 | GitHub repository rename | `gh repo rename ant-build-center --yes`, `gh repo view --json nameWithOwner,url`, `git remote -v` | Remote repo slug and local `origin` both use `ant-build-center` | Succeeded | ✓ |
+| Tauri shell maximize regression | `cargo test -q --manifest-path src-tauri/Cargo.toml --lib` | Config regression and maximize activation order both pass | 2 tests passed | ✓ |
+| Post-bundle lint stability | `npm run lint` | ESLint stays green even after Tauri generated `src-tauri/target` assets exist | Succeeded | ✓ |
+| Maximized startup package build | `npx tauri build --bundles deb` | Linux `.deb` rebuilt as `1.1.1` with maximized startup defaults | Succeeded | ✓ |
+| Local package reinstall | `sudo dpkg -i 'src-tauri/target/release/bundle/deb/Ant Build Center_1.1.1_amd64.deb'` | Installed system package upgraded/reinstalled to corrected `1.1.1` build | Succeeded | ✓ |
+| Desktop maximize smoke | `/usr/bin/ant-build-center`, `gnome-screenshot -w`, `gnome-screenshot`, `xrandr` | Installed app opens maximized, not fullscreen, on a 1920x1080 monitor | Active window captured at 1872x1048 with title bar visible | ✓ |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
@@ -184,6 +189,33 @@
 | 2026-04-01 16:27 | Tauri crate required missing GTK/WebKit system libraries on this Linux host | 1 | Installed the official Ubuntu dependency set and unblocked local shell compilation |
 
 ## Session: 2026-04-02
+
+### Maximized Default + Release 1.1.1
+- **Status:** in_progress
+- Actions taken:
+  - Created branch `codex/default-maximized-release` from `master` before making release-scoped changes.
+  - Inspected the Tauri window config and confirmed the app does not yet start maximized by default.
+  - Inspected the single-instance activation path and confirmed it only focuses the existing window without restoring maximized state.
+  - Verified GitHub publication prerequisites: `gh` is installed/authenticated, `origin` points at `Jiang0977/ant-build-center`, and the latest release is `v1.1.0`.
+  - Updated the planning files to track this patch-release scope.
+  - Confirmed from the local Tauri schema that `maximized` window config and `maximize()` runtime APIs are available.
+  - Corrected the implementation target from fullscreen to maximized before commit/release, based on the user's clarification.
+  - Added shell-level regression coverage for the default window config and the maximize-before-focus activation path.
+  - Switched the startup behavior to maximized at both the Tauri config layer and the single-instance/setup activation path.
+  - Added `src-tauri/target` to the global ESLint ignore list so `npm run lint` stays green after local bundle builds.
+  - Rebuilt the Linux `.deb`, reinstalled `ant-build-center 1.1.1` locally, and verified the installed app opens maximized via GNOME screenshots.
+- Files created/modified:
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
+  - `docs/designs/tauri-control-center-rewrite.md`
+  - `src-tauri/src/lib.rs`
+  - `src-tauri/tauri.conf.json`
+  - `src-tauri/Cargo.toml`
+  - `src-tauri/Cargo.lock`
+  - `package.json`
+  - `package-lock.json`
+  - `eslint.config.js`
 
 ### Repository Naming Alignment
 - **Status:** complete
